@@ -1,0 +1,125 @@
+# app-db stores the Prisma-managed application data.
+# tenant-db contains the local business database fixture.
+
+# Each child of services is 1 container
+services:
+  # Container name is <project>-<service>-<replica index>: knowledgestack-app-db-1
+  # Project defaults to the directory name, and the index is present even with one replica
+  app-db:
+    # Point to publicly registered container image for particular service
+    image: pgvector/pgvector:pg17 # <docker hub>/<repo name>:<tag>
+    # Start runtime with environment variables in container
+    environment:
+      # Finds variables in .env as long as they're adjacent
+      # :? makes Docker Compose abort with a particular message when the variable is unset/empty instead of expanding to an empty string
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is not set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is not set in .env}
+    # Define a way to reach the application running in Docker container via network
+    # Normally, Mac and Docker network namespaces are different, so even if the application is running in docker on localhost:8080, typing in localhost:8080 on Mac browser resolves to nothing listening
+    ports:
+      - "127.0.0.1:5432:5432" # <host interface>:<host port>:<container port>
+      # Localhost is a special host interface; other potential interfaces include WiFi, VPN, etc.
+    # Mounts source folder into target Docker container filesystem
+    # When the Postgres service within the container writes into target folder, it is reflected in mounted volume (persisted to machine running container)
+    # Target folder is somewhere on the container filesystem, also stored in the machine's SSD which is running the container (just Docker-managed and only accessible via container)
+    # If we don't mount it, then after destroying and rebuilding container we lose any written data within the container's filesystem
+    volumes:
+      - app-db-data:/var/lib/postgresql/data # <source>:<target>
+    healthcheck:
+      # We use two dollar signs to pass ${VAR} as a literal which is resolved by container's shell environment
+      # The purpose of this is to test that shell environment is properly set up, and service is reachable
+      test: ["CMD-SHELL", "PGPASSWORD=$${POSTGRES_PASSWORD} psql --host=127.0.0.1 --username=$${POSTGRES_USER} --dbname=$${POSTGRES_DB} --tuples-only --command='SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  tenant-db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: ${TENANT_POSTGRES_USER:?TENANT_POSTGRES_USER is not set in .env}
+      POSTGRES_PASSWORD: ${TENANT_POSTGRES_PASSWORD:?TENANT_POSTGRES_PASSWORD is not set in .env}
+      POSTGRES_DB: ${TENANT_POSTGRES_DB:?TENANT_POSTGRES_DB is not set in .env}
+    ports:
+      - "127.0.0.1:5433:5432" # use different host port
+    volumes:
+      - tenant-db-data:/var/lib/postgresql/data
+      # Makes folder seed-data/tenant_company appear inside container at target path
+      # Source is resolved relative to docker-compose.yml
+      # Target is absolute path in container filesystem
+      # Source is supposed to feed data in; :ro sets read-only flag so container application can read data only
+      - ./seed-data/tenant_company:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "PGPASSWORD=$${POSTGRES_PASSWORD} psql --host=127.0.0.1 --username=$${POSTGRES_USER} --dbname=$${POSTGRES_DB} --tuples-only --command='SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api-migrate:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migration
+    environment:
+      DB_DIRECT_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@app-db:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      app-db:
+        condition: service_healthy
+
+  api:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: production
+    init: true
+    env_file:
+      - path: ./apps/api/.env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      DB_POOL_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@app-db:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+      tenant-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3001:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health/ready').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: production
+    init: true
+    env_file:
+      - path: ./apps/web/.env.local
+        required: false
+    environment:
+      API_INTERNAL_URL: http://api:3001
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+# Define named volumes, which are Docker-managed and stored locally on device running Docker containers
+# This ensures that although containers are ephemeral, the database files referenced in them are persisted
+volumes:
+  # Leaving value blank allows Docker Compose to use sensible defaults
+  app-db-data:
+  tenant-db-data:
