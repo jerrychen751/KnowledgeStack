@@ -1,0 +1,45 @@
+# === Dependencies ===
+node_modules/
+
+# === Build output ===
+# dist/ = NestJS (apps/api); .next/ + out/ = Next.js (apps/web)
+dist/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+apps/api/src/generated/
+
+# === Environment & secrets ===
+# .env.example IS committed as a template; every real .env is ignored
+.env
+.env.*
+!.env.example
+*.pem
+
+# === Logs ===
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# === Testing ===
+coverage/
+.nyc_output/
+
+# === Caches ===
+.eslintcache
+
+# === Editors ===
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# === macOS / OS ===
+.DS_Store
+.DS_Store?
+Thumbs.db

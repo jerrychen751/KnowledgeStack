@@ -1,0 +1,21 @@
+{
+  "name": "knowledgestack",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm dev:apps",
+    "dev:apps": "pnpm -r --parallel dev",
+    "dev:db": "node scripts/validate-compose-environment.mjs && docker compose up -d --wait app-db tenant-db",
+    "dev:full": "node scripts/validate-compose-environment.mjs && docker compose --profile full up -d --build --wait",
+    "docker:down": "docker compose --profile full down",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}
