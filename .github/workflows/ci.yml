@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DB_DIRECT_URL: postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder
+
+    steps:
+      - name: Retrieve the commit for this event
+        uses: actions/checkout@v7
+
+      # This action reads packageManager from the root package.json and selects the pnpm version.
+      - name: Configure pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate the Prisma schema
+        # Run Prisma from the API package directory.
+        run: pnpm --filter @knowledgestack/api exec prisma validate --config=prisma.config.ts
+
+      - name: Generate the Prisma Client
+        run: pnpm --filter @knowledgestack/api exec prisma generate --config=prisma.config.ts
+
+      # The root typecheck script runs each package typecheck script.
+      - name: Perform TypeScript type checks
+        run: pnpm typecheck
+
+      - name: Build all packages
+        run: pnpm build
+
+  containers:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      POSTGRES_USER: knowledgestack
+      POSTGRES_PASSWORD: knowledgestack
+      POSTGRES_DB: knowledgestack
+      TENANT_POSTGRES_USER: tenant1
+      TENANT_POSTGRES_PASSWORD: tenant1
+      TENANT_POSTGRES_DB: tenant1
+
+    steps:
+      - name: Retrieve the commit for this event
+        uses: actions/checkout@v7
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+
+      - name: Validate the full Compose configuration
+        run: |
+          node scripts/validate-compose-environment.mjs
+          docker compose --profile full config --quiet
+
+      - name: Start the full container stack
+        run: docker compose --profile full up -d --build --wait
+
+      - name: Check the API liveness route
+        run: curl --fail --silent --show-error http://127.0.0.1:3001/health/live
+
+      - name: Check the API readiness route
+        run: curl --fail --silent --show-error http://127.0.0.1:3001/health/ready
+
+      - name: Check the web health route
+        run: curl --fail --silent --show-error http://127.0.0.1:3000/health
+
+      - name: Check the web-to-API route
+        run: >
+          docker compose --profile full exec -T web
+          node -e
+          "fetch(process.env.API_INTERNAL_URL + '/health/ready')
+          .then((response) => process.exit(response.ok ? 0 : 1))
+          .catch(() => process.exit(1))"
+
+      - name: Stop the full container stack
+        if: always()
+        run: docker compose --profile full down --volumes --remove-orphans
