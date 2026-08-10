@@ -1,0 +1,12 @@
+// Normally prisma/schema.prisma contains all table definitions
+// But we split it up into multiple logically-grouped files
+// This requires a base.prisma to configure for all table schema files
+
+datasource db {
+    provider = "postgresql"
+}
+
+generator client {
+    provider = "prisma-client"
+    output = "../../src/generated/prisma" // relative to location of this prisma file
+}

@@ -1,0 +1,12 @@
+model Tenant {
+    // Marked as primary key and generates default if not provided one
+    id String @id @default(cuid())
+    name String
+    slug String @unique // unique url-safe identifier
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // This is relation field; does not create a column in the Tenant table
+    // A field becomes marked as a relation based on its type
+    connections DBConnection[]
+}
