@@ -1,0 +1,107 @@
+// PostgreSQL rejects a provider value until its enum migration commits.
+enum DocumentSourceProvider {
+    filesystem
+    notion
+    confluence
+}
+
+// Semantic category, not the vocabulary of the source; each connector maps its own types onto these three
+enum DocumentType {
+    page // fetchable as text
+    database // structured rows, such as a Notion database
+    attachment // binary, such as a PDF; readDocument cannot return text for it
+}
+
+enum SourceStatus {
+    active
+    reauth_required
+    error
+}
+
+model DocumentSource {
+    id String @id @default(cuid())
+    provider DocumentSourceProvider
+    // The provider's id for the granted scope: a Notion workspace_id, an Atlassian cloudId, a filesystem root path
+    externalId String @map("external_id")
+    // Mutable provider name, such as Notion workspace_name; never use it as an identifier
+    externalDisplayName String @map("external_display_name")
+    // Opaque id of the user whose grant produced the credential: Notion owner.user.id, Atlassian account_id, Google sub
+    // Null for a Notion internal integration and for the filesystem connector, which have no granting user
+    externalUserId String? @map("external_user_id")
+    // Mutable provider email; never use it as an identifier
+    externalUserEmail String? @map("external_user_email")
+    // Choices made inside the grant, such as { "spaceKeys": ["ENG", "OPS"] }; the grant boundary is not config
+    config Json @default("{}")
+
+    // Null for the filesystem connector, which has no provider credential
+    encryptedAccessToken String? @map("encrypted_access_token")
+    // Null when the provider issues no refresh token, as Notion does
+    encryptedRefreshToken String? @map("encrypted_refresh_token")
+    expiresAt DateTime? @map("expires_at")
+    // Null for the filesystem connector; OAuth providers return a space-separated value such as 'read:content:confluence read:space:confluence'
+    scope String?
+    status SourceStatus @default(active)
+    // Start time of the last sync pass
+    lastSyncedAt DateTime? @map("last_synced_at")
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    tenantId String @map("tenant_id")
+    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+    documents Document[]
+
+    // Each source stores one authorization; this key rejects a second source row for the same provider id
+    @@unique([tenantId, provider, externalId])
+    @@index([tenantId])
+    @@map("document_sources")
+}
+
+model Document {
+    id String @id @default(cuid())
+    externalId String @map("external_id") // id the source assigns, such as a Notion page id; unique only within one source
+    externalTitle String @map("external_title")
+    externalParentId String? @map("external_parent_id")
+    externalParentType String? @map("external_parent_type")
+    // Ordered titles from the source root to this document; the last value equals externalTitle
+    titlePath String[] @map("title_path")
+    externalUrl String @map("external_url") // deep link into the source; a citation shows it and readDocument re-fetches through it
+    documentType DocumentType @map("document_type")
+    // Edit time the provider reports, unlike updatedAt below which is the edit time of this row
+    externalUpdatedAt DateTime @map("external_updated_at")
+    // sha256 of the normalized body; a newer externalUpdatedAt with an equal hash skips the re-embed
+    contentHash String @map("content_hash")
+    // Time the chunks were last written; the gap from externalUpdatedAt to here is the staleness of this document
+    indexedAt DateTime? @map("indexed_at")
+    // Stamped with the start time of every full reconcile pass that lists this document
+    lastSeenAt DateTime @map("last_seen_at")
+    // Set when a reconcile pass stops listing the document, or when the source answers 404 to a fetch
+    deletedAt DateTime? @map("deleted_at")
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    sourceId String @map("source_id")
+    source DocumentSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+    chunks DocumentChunk[]
+
+    @@unique([sourceId, externalId])
+    // The reconcile sweep reads the rows of one source whose lastSeenAt predates the start of the pass
+    @@index([sourceId, lastSeenAt])
+    @@map("documents")
+}
+
+model DocumentChunk {
+    id String @id @default(cuid())
+    chunkIndex Int @map("chunk_index") // 0-based and contiguous, because a re-embed deletes every chunk of the document and re-inserts
+    text String // raw chunk text; the embed step prepends titlePath before it calls OpenAI
+    tokenCount Int @map("token_count")
+    // The migration defines an HNSW cosine index because Prisma cannot index this Unsupported field
+    // Prisma Client cannot read or write this field, so ingestion and search use raw SQL
+    embedding Unsupported("vector(1536)")?
+    createdAt DateTime @default(now()) @map("created_at")
+
+    documentId String @map("document_id")
+    document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+    @@unique([documentId, chunkIndex])
+    @@map("document_chunks")
+}

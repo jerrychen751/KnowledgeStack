@@ -9,4 +9,5 @@ model Tenant {
     // This is relation field; does not create a column in the Tenant table
     // A field becomes marked as a relation based on its type
     connections DBConnection[]
+    sources DocumentSource[]
 }

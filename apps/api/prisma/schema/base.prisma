@@ -4,9 +4,11 @@
 
 datasource db {
     provider = "postgresql"
+    extensions = [vector] // pgvector; supplies the vector(1536) type on DocumentChunk.embedding
 }
 
 generator client {
     provider = "prisma-client"
     output = "../../src/generated/prisma" // relative to location of this prisma file
+    previewFeatures = ["postgresqlExtensions"] // required before Prisma emits CREATE EXTENSION in a migration
 }

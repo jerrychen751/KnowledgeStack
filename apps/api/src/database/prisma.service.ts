@@ -13,7 +13,15 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
     }
 
     const adapter = new PrismaPg({ connectionString: connectionString });
-    super({ adapter });
+    super({
+      adapter,
+      omit: {
+        documentSource: {
+          encryptedAccessToken: true,
+          encryptedRefreshToken: true,
+        },
+      },
+    });
   }
 
   async onModuleDestroy(): Promise<void> {
