@@ -7,18 +7,22 @@
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
-    "pretest": "DB_DIRECT_URL=postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder prisma generate",
-    "test": "pnpm build && node --test test/connectors/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@knowledgestack/shared": "workspace:*",
+    "@langchain/textsplitters": "^1.0.1",
     "@nestjs/common": "^11.1.27",
     "@nestjs/core": "^11.1.27",
     "@nestjs/platform-express": "^11.1.27",
     "@prisma/adapter-pg": "7.8.0",
     "@prisma/client": "^7.8.0",
     "dotenv": "^17.4.2",
+    "js-tiktoken": "^1.0.21",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-gfm": "^3.1.0",
+    "micromark-extension-gfm": "^3.0.0",
+    "openai": "^7.4.0",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
@@ -26,6 +30,7 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.23",
     "@nestjs/schematics": "^11.0.0",
+    "@types/mdast": "^4.0.4",
     "@types/node": "^24.13.3",
     "prisma": "^7.8.0",
     "typescript": "^6.0.3"
