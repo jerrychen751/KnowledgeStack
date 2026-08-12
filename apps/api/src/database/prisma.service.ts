@@ -16,7 +16,7 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
     super({
       adapter,
       omit: {
-        documentSource: {
+        sourceCredential: {
           encryptedAccessToken: true,
           encryptedRefreshToken: true,
         },

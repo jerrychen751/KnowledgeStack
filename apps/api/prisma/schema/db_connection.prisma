@@ -1,18 +1,19 @@
 model DBConnection {
-    id String @id @default(cuid())
-    name String
-    dialect String // 'postgres', 'mysql'
-    host String
-    port Int
-    database String
-    username String
-    enc_password String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  dialect           String // 'postgres', 'mysql'
+  host              String
+  port              Int
+  database          String
+  username          String
+  encryptedPassword String   @map("encrypted_password")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-    // 1:N foreign key, living in DBConnection table (N side)
-    tenantId String
-    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // 1:N foreign key, living in DBConnection table (N side)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-    @@index([tenantId])
+  @@index([tenantId])
+  @@map("db_connections")
 }
