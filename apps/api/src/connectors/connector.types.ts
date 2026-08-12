@@ -12,9 +12,10 @@ export type DocumentRef = {
 
 export type DocumentBody = {
   externalId: string;
-  // Provider-controlled Markdown; sanitize it before an HTML renderer uses it.
-  contents: string;
   externalUpdatedAt: Date;
+  contentFormat: "markdown" | "plain_text";
+  // Sanitize provider-controlled text before an HTML renderer uses it.
+  contents: string;
 };
 
 export type ListDocumentsOptions = {
@@ -24,12 +25,13 @@ export type ListDocumentsOptions = {
 
 export type DocumentPage = {
   documents: DocumentRef[];
-  // True when a complete cursor walk lists every document in the source.
-  isExhaustive: boolean;
   nextCursor: string | null;
 };
 
 export interface DocumentConnector {
   listDocuments(options?: ListDocumentsOptions): Promise<DocumentPage>;
   fetchDocumentById(externalId: string): Promise<DocumentBody>;
+  // False means the source answered that it no longer serves the document, so the caller can delete it.
+  // A source that cannot answer throws, which stops a rate limit or an outage from reading as a deletion.
+  checkDocumentExists(externalId: string): Promise<boolean>;
 }

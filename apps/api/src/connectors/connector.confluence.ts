@@ -1,6 +1,6 @@
 import { DocumentType } from "../generated/prisma/enums.js";
 
-import { fetchConnectorJson } from "./connector.http.js";
+import { ConnectorRequestError, fetchConnectorJson } from "./connector.http.js";
 import {
   formatMarkdownCodeBlock,
   formatMarkdownTableCell,
@@ -25,6 +25,8 @@ type ConfluencePage = {
   id: string;
   parentId: string;
   parentType: string;
+  spaceId: string;
+  status: string;
   title: string;
   version: {
     createdAt: string;
@@ -230,32 +232,18 @@ function renderAtlassianNode(node: AtlassianDocumentNode): string {
   }
 }
 
-function readConfluenceBody(page: ConfluencePageWithBody): string {
-  const documentNode = JSON.parse(
-    page.body.atlas_doc_format.value,
-  ) as AtlassianDocumentNode;
-  return renderAtlassianNode(documentNode)
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 export class ConfluenceConnector implements DocumentConnector {
   private readonly accessToken: string;
   private readonly apiBaseUrl: URL;
-  private readonly fetchImplementation: typeof fetch;
   private readonly siteUrl: URL;
   private readonly spaceIds: readonly string[];
 
-  constructor(
-    options: ConfluenceConnectorOptions,
-    fetchImplementation: typeof fetch = fetch,
-  ) {
+  constructor(options: ConfluenceConnectorOptions) {
     this.accessToken = options.accessToken;
     this.apiBaseUrl = new URL(
       `/ex/confluence/${encodeURIComponent(options.cloudId)}/wiki/api/v2/`,
       "https://api.atlassian.com",
     );
-    this.fetchImplementation = fetchImplementation;
     this.siteUrl = new URL(options.siteUrl);
     this.spaceIds = [...new Set(options.spaceIds)];
   }
@@ -275,7 +263,6 @@ export class ConfluenceConnector implements DocumentConnector {
 
     const { body, response } =
       await fetchConnectorJson<ConfluencePageResponse>(
-        this.fetchImplementation,
         "Confluence",
         "list pages",
         url,
@@ -291,7 +278,6 @@ export class ConfluenceConnector implements DocumentConnector {
       documents: body.results.map((page) =>
         mapConfluencePage(page, this.siteUrl),
       ),
-      isExhaustive: true,
       nextCursor: findConfluenceNextCursor(body, response),
     };
   }
@@ -300,7 +286,6 @@ export class ConfluenceConnector implements DocumentConnector {
     const url = new URL(`pages/${encodeURIComponent(externalId)}`, this.apiBaseUrl);
     url.searchParams.set("body-format", "atlas_doc_format");
     const { body: page } = await fetchConnectorJson<ConfluencePageWithBody>(
-      this.fetchImplementation,
       "Confluence",
       "fetch a page",
       url,
@@ -312,10 +297,46 @@ export class ConfluenceConnector implements DocumentConnector {
       },
     );
 
+    const documentNode = JSON.parse(
+      page.body.atlas_doc_format.value,
+    ) as AtlassianDocumentNode;
+
     return {
+      contentFormat: "markdown",
       externalId: page.id,
-      contents: readConfluenceBody(page),
+      contents: renderAtlassianNode(documentNode)
+        .replace(/\n{3,}/g, "\n\n")
+        .trim(),
       externalUpdatedAt: new Date(page.version.createdAt),
     };
+  }
+
+  async checkDocumentExists(externalId: string): Promise<boolean> {
+    const url = new URL(`pages/${encodeURIComponent(externalId)}`, this.apiBaseUrl);
+    try {
+      const { body: page } = await fetchConnectorJson<ConfluencePage>(
+        "Confluence",
+        "check a page",
+        url,
+        {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${this.accessToken}`,
+          },
+        },
+      );
+
+      // listDocuments asks for status 'current' in the spaces of this source, so every other answer
+      // is out of scope: an archived or trashed page, and a page a user moved to another space.
+      return page.status === "current" && this.spaceIds.includes(page.spaceId);
+    } catch (error) {
+      // 404 covers a purged page and a page this grant lost access to. Neither one can be fetched or
+      // cited again, so both count as gone. Every other status throws and stops the sweep.
+      if (error instanceof ConnectorRequestError && error.status === 404) {
+        return false;
+      }
+
+      throw error;
+    }
   }
 }

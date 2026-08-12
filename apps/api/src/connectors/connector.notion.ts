@@ -1,6 +1,6 @@
 import { DocumentType } from "../generated/prisma/enums.js";
 
-import { fetchConnectorJson } from "./connector.http.js";
+import { ConnectorRequestError, fetchConnectorJson } from "./connector.http.js";
 import {
   formatMarkdownCodeBlock,
   formatMarkdownTableCell,
@@ -35,6 +35,7 @@ type NotionPage = {
   id: string;
   url: string;
   last_edited_time: string;
+  in_trash: boolean;
   parent: NotionParent;
   properties: Record<string, unknown>;
 };
@@ -247,7 +248,6 @@ function formatNotionBlock(
 }
 
 async function fetchNotionBlockContents(
-  fetchImplementation: typeof fetch,
   accessToken: string,
   notionVersion: string,
   blockId: string,
@@ -270,7 +270,6 @@ async function fetchNotionBlockContents(
     }
 
     const { body } = await fetchConnectorJson<NotionBlockResponse>(
-      fetchImplementation,
       "Notion",
       "list block children",
       url,
@@ -318,7 +317,6 @@ async function fetchNotionBlockContents(
           block.type === "table" &&
           readNotionBlockValue(block).has_column_header === true;
         const childLines = await fetchNotionBlockContents(
-          fetchImplementation,
           accessToken,
           notionVersion,
           block.id,
@@ -342,15 +340,10 @@ async function fetchNotionBlockContents(
 
 export class NotionConnector implements DocumentConnector {
   private readonly accessToken: string;
-  private readonly fetchImplementation: typeof fetch;
   private readonly notionVersion: string;
 
-  constructor(
-    options: NotionConnectorOptions,
-    fetchImplementation: typeof fetch = fetch,
-  ) {
+  constructor(options: NotionConnectorOptions) {
     this.accessToken = options.accessToken;
-    this.fetchImplementation = fetchImplementation;
     this.notionVersion = options.notionVersion ?? "2026-03-11";
   }
 
@@ -363,8 +356,11 @@ export class NotionConnector implements DocumentConnector {
         value: "page",
       },
       page_size: options.pageSize ?? 100,
+      // Ascending order stops a concurrent edit from hiding a page: the new last_edited_time moves the
+      // page after the cursor, so this walk lists it a second time and the upsert absorbs the repeat.
+      // Descending order moves it to position 0, before the cursor, and the deletion sweep removes it.
       sort: {
-        direction: "descending",
+        direction: "ascending",
         timestamp: "last_edited_time",
       },
     };
@@ -373,7 +369,6 @@ export class NotionConnector implements DocumentConnector {
     }
 
     const { body } = await fetchConnectorJson<NotionSearchResponse>(
-      this.fetchImplementation,
       "Notion",
       "list pages",
       "https://api.notion.com/v1/search",
@@ -388,16 +383,16 @@ export class NotionConnector implements DocumentConnector {
       },
     );
 
+    // Notion search can still omit an accessible page while its index lags. The deletion sweep in
+    // sync/sync.service.ts reads that absence as a deletion, and the next pass re-embeds the page.
     return {
       documents: body.results.map(mapNotionPage),
-      isExhaustive: false,
       nextCursor: body.has_more ? body.next_cursor : null,
     };
   }
 
   async fetchDocumentById(externalId: string): Promise<DocumentBody> {
     const { body: page } = await fetchConnectorJson<NotionPage>(
-      this.fetchImplementation,
       "Notion",
       "fetch a page",
       `https://api.notion.com/v1/pages/${encodeURIComponent(externalId)}`,
@@ -409,16 +404,43 @@ export class NotionConnector implements DocumentConnector {
       },
     );
     const contents = await fetchNotionBlockContents(
-      this.fetchImplementation,
       this.accessToken,
       this.notionVersion,
       externalId,
     );
 
     return {
+      contentFormat: "markdown",
       externalId: page.id,
       contents: contents.join("\n\n"),
       externalUpdatedAt: new Date(page.last_edited_time),
     };
+  }
+
+  async checkDocumentExists(externalId: string): Promise<boolean> {
+    try {
+      const { body: page } = await fetchConnectorJson<NotionPage>(
+        "Notion",
+        "check a page",
+        `https://api.notion.com/v1/pages/${encodeURIComponent(externalId)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Notion-Version": this.notionVersion,
+          },
+        },
+      );
+
+      // A trashed page answers 200 for the 30 days before Notion purges it, so the flag decides.
+      return !page.in_trash;
+    } catch (error) {
+      // 404 covers a purged page and a page this integration lost access to. Neither one can be
+      // fetched or cited again, so both count as gone. Every other status throws and stops the sweep.
+      if (error instanceof ConnectorRequestError && error.status === 404) {
+        return false;
+      }
+
+      throw error;
+    }
   }
 }

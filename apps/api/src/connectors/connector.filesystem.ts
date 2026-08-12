@@ -264,7 +264,6 @@ export class FileSystemConnector implements DocumentConnector {
 
     return {
       documents: pageDocuments,
-      isExhaustive: true,
       nextCursor: hasMore
         ? (pageDocuments.at(-1)?.externalId ?? null)
         : null,
@@ -317,12 +316,40 @@ export class FileSystemConnector implements DocumentConnector {
       }
 
       return {
+        contentFormat:
+          extname(filePath).toLowerCase() === ".md"
+            ? "markdown"
+            : "plain_text",
         externalId,
         contents: contentBuffer.toString("utf8"),
         externalUpdatedAt: finalFileStatus.mtime,
       };
     } finally {
       await fileHandle.close();
+    }
+  }
+
+  async checkDocumentExists(externalId: string): Promise<boolean> {
+    // A missing root, such as an unmounted volume, throws here and stops the sweep. Reporting every
+    // document of the source gone would delete the whole source and every embedding it paid for.
+    const rootDirectory = await realpath(this.configuredRootDirectory);
+    try {
+      await this.resolveFilePath(rootDirectory, externalId);
+      return true;
+    } catch (error) {
+      // resolveFilePath throws TypeError for a path this source refuses to serve, such as an id that
+      // now names a directory, a symbolic link, or an ignored name. lstat throws ENOENT for a path
+      // that is gone. Any other error, such as EACCES, propagates and stops the sweep.
+      if (error instanceof TypeError) {
+        return false;
+      }
+
+      const errorCode = (error as NodeJS.ErrnoException).code;
+      if (errorCode === "ENOENT" || errorCode === "ENOTDIR") {
+        return false;
+      }
+
+      throw error;
     }
   }
 }
