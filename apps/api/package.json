@@ -7,6 +7,8 @@
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
+    "pretest": "DB_DIRECT_URL=postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder prisma generate",
+    "test": "pnpm build && node --test test/connectors/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

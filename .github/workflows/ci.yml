@@ -40,6 +40,9 @@ jobs:
       - name: Generate the Prisma Client
         run: pnpm --filter @knowledgestack/api exec prisma generate --config=prisma.config.ts
 
+      - name: Test the document connectors
+        run: pnpm --filter @knowledgestack/api test
+
       # The root typecheck script runs each package typecheck script.
       - name: Perform TypeScript type checks
         run: pnpm typecheck
