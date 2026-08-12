@@ -5,11 +5,9 @@ import { PrismaService } from "../database/prisma.service.js";
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Return whether the backend API is reachable via an HTTP request.
-   */
+  /** Return whether the backend API is reachable via an HTTP request. */
   @Get("live")
-  getHealth(): { status: "ok" } {
+  getLive(): { status: "ok" } {
     return { status: "ok" };
   }
 
