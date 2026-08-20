@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
+import { DocumentSourceRepository } from "../documents/document-source.repository.js";
 import { DocumentRepository } from "../documents/document.repository.js";
 import { DocumentType } from "../generated/prisma/enums.js";
 import { EmbeddingService } from "../embedding/embedding.service.js";
@@ -12,6 +13,7 @@ export class SyncService {
   constructor(
     private readonly connectorResolver: ConnectorResolver,
     private readonly documentRepository: DocumentRepository,
+    private readonly documentSourceRepository: DocumentSourceRepository,
     private readonly embeddingService: EmbeddingService,
   ) {}
 
@@ -24,10 +26,11 @@ export class SyncService {
    * replaces every chunk stored for the document. It never indexes an attachment, because no connector
    * returns the text of a binary file. It then asks the source about every document the pass did not
    * list, and deletes only the ones the source reports gone, because a listing can omit a live
-   * document. The database cascade removes the chunks of a deleted document.
+   * document. The database cascade removes the chunks of a deleted document. It stamps the source with the
+   * pass start time last, so `lastSyncedAt` names a pass that finished.
    *
-   * A failure aborts the pass. The deletion sweep never runs, and every document indexed so far keeps its
-   * new chunks.
+   * A failure aborts the pass. The deletion sweep never runs, the source keeps its previous `lastSyncedAt`,
+   * and every document indexed so far keeps its new chunks.
    */
   async sync(documentSourceId: string): Promise<void> {
     const syncStartedAt = new Date();
@@ -85,17 +88,21 @@ export class SyncService {
       documentSourceId,
       syncStartedAt,
     );
-    const goneDocumentIds: string[] = [];
+    const staleDocumentIds: string[] = [];
     // One request at a time: Notion allows about three requests per second across the integration.
     for (const staleDocument of staleDocuments) {
       const exists = await connector.checkDocumentExists(
         staleDocument.externalId,
       );
       if (!exists) {
-        goneDocumentIds.push(staleDocument.id);
+        staleDocumentIds.push(staleDocument.id);
       }
     }
 
-    await this.documentRepository.deleteDocuments(goneDocumentIds);
+    await this.documentRepository.deleteDocuments(staleDocumentIds);
+    await this.documentSourceRepository.recordSyncCompletion(
+      documentSourceId,
+      syncStartedAt,
+    );
   }
 }
