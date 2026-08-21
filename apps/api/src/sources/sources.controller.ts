@@ -6,6 +6,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  HttpException,
   Param,
   Post,
   Query,
@@ -112,6 +113,28 @@ export class SourcesController {
       }
       throw new BadGatewayException(
         error instanceof Error ? error.message : "The sync pass failed.",
+      );
+    }
+
+    return { status: "ok" };
+  }
+
+  /** Delete one uploaded file with the document and chunks that index it. Filesystem sources only. */
+  @Delete(":sourceId/documents/:documentId")
+  @HttpCode(200)
+  async deleteDocument(
+    @Param("sourceId") sourceId: string,
+    @Param("documentId") documentId: string,
+    @ActiveWorkspaceId() workspaceId: string,
+  ): Promise<StatusResponse> {
+    try {
+      await this.sourcesService.deleteDocument(workspaceId, sourceId, documentId);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new BadGatewayException(
+        error instanceof Error ? error.message : "The file did not delete.",
       );
     }
 

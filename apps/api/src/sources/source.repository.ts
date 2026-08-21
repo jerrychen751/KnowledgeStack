@@ -176,15 +176,48 @@ export class SourceRepository {
     return deletion.count;
   }
 
-  async findSourceProvider(
+  /** Return one source of this workspace, or null. `externalId` is the root directory of a filesystem source. */
+  async findSource(
     workspaceId: string,
     sourceId: string,
-  ): Promise<SourceProvider | null> {
-    const source = await this.prisma.source.findFirst({
+  ): Promise<{ provider: SourceProvider; externalId: string } | null> {
+    return this.prisma.source.findFirst({
       where: { id: sourceId, workspaceId },
-      select: { provider: true },
+      select: { provider: true, externalId: true },
     });
+  }
 
-    return source?.provider ?? null;
+  /**
+   * Return one document of one source of this workspace, or null.
+   *
+   * `externalId` on the document is the id the source assigns, and `externalId` on the source is the root
+   * directory of a filesystem source. One query carries both, so no source can change between two reads.
+   */
+  async findDocument(
+    workspaceId: string,
+    sourceId: string,
+    documentId: string,
+  ): Promise<{
+    externalId: string;
+    source: { provider: SourceProvider; externalId: string };
+  } | null> {
+    return this.prisma.document.findFirst({
+      where: { id: documentId, sourceId, source: { workspaceId } },
+      select: {
+        externalId: true,
+        source: { select: { provider: true, externalId: true } },
+      },
+    });
+  }
+
+  /** Delete one document of one source of this workspace. The database cascade removes its chunks. */
+  async deleteDocument(
+    workspaceId: string,
+    sourceId: string,
+    documentId: string,
+  ): Promise<void> {
+    await this.prisma.document.deleteMany({
+      where: { id: documentId, sourceId, source: { workspaceId } },
+    });
   }
 }

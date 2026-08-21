@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
 
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
@@ -13,9 +13,11 @@ import type {
 } from "@knowledgestack/shared/sources";
 
 import { OAuthRegistry } from "../auth/oauth.registry.js";
+import { isDeletableConnector } from "../connectors/connector.types.js";
 import type { OAuthProviderName } from "../auth/oauth.types.js";
 import { TokenService } from "../auth/token.service.js";
 import { SourceProvider } from "../generated/prisma/enums.js";
+import { ConnectorResolver } from "../sync/connector.resolver.js";
 import { SyncService } from "../sync/sync.service.js";
 
 import { SourceRepository } from "./source.repository.js";
@@ -44,6 +46,7 @@ export class SourcesService {
   private readonly pendingAuthorizations = new Map<string, PendingAuthorization>();
 
   constructor(
+    private readonly connectorResolver: ConnectorResolver,
     private readonly oauthRegistry: OAuthRegistry,
     private readonly sourceRepository: SourceRepository,
     private readonly syncService: SyncService,
@@ -68,11 +71,8 @@ export class SourcesService {
     workspaceId: string,
     sourceId: string,
   ): Promise<SourceDocument[]> {
-    const provider = await this.sourceRepository.findSourceProvider(
-      workspaceId,
-      sourceId,
-    );
-    if (provider === null) {
+    const source = await this.sourceRepository.findSource(workspaceId, sourceId);
+    if (source === null) {
       throw new NotFoundException("The source does not exist.");
     }
 
@@ -173,26 +173,86 @@ export class SourcesService {
   }
 
   async syncSource(workspaceId: string, sourceId: string): Promise<void> {
-    const provider = await this.sourceRepository.findSourceProvider(
-      workspaceId,
-      sourceId,
-    );
-    if (provider === null) {
+    const source = await this.sourceRepository.findSource(workspaceId, sourceId);
+    if (source === null) {
       throw new NotFoundException("The source does not exist.");
     }
 
     await this.syncService.sync(sourceId);
   }
 
-  /** Delete one source with its documents and chunks. The uploaded files stay in the upload directory. */
-  async deleteSource(workspaceId: string, sourceId: string): Promise<void> {
-    const deletedCount = await this.sourceRepository.deleteSource(
-      workspaceId,
-      sourceId,
+  /**
+   * Whether this source reads the upload directory of this workspace, the one directory this API writes.
+   *
+   * A filesystem source that reads any other path holds files this app did not create, such as a mounted
+   * host directory, so no delete route may unlink them.
+   */
+  private isManagedUploadDirectory(
+    workspaceId: string,
+    source: { provider: SourceProvider; externalId: string },
+  ): boolean {
+    return (
+      source.provider === SourceProvider.filesystem &&
+      source.externalId === this.readUploadDirectory(workspaceId)
     );
-    if (deletedCount === 0) {
+  }
+
+  /**
+   * Delete one source with its documents and chunks, and delete the uploaded files behind it.
+   *
+   * The files go first. A failed delete then leaves rows whose files are gone, which the next sync pass
+   * sweeps. The reverse order would leave indexed files that the next upload imports again.
+   */
+  async deleteSource(workspaceId: string, sourceId: string): Promise<void> {
+    const source = await this.sourceRepository.findSource(workspaceId, sourceId);
+    if (source === null) {
       throw new NotFoundException("The source does not exist.");
     }
+
+    if (this.isManagedUploadDirectory(workspaceId, source)) {
+      await rm(source.externalId, { force: true, recursive: true });
+    }
+    await this.sourceRepository.deleteSource(workspaceId, sourceId);
+  }
+
+  /**
+   * Delete one uploaded file, and the document and chunks that index it.
+   *
+   * Only the uploads of this workspace go. A Notion or Confluence document returns on the next sync pass
+   * because the provider still serves it, and a filesystem source that reads any other directory holds
+   * files this app did not create.
+   */
+  async deleteDocument(
+    workspaceId: string,
+    sourceId: string,
+    documentId: string,
+  ): Promise<void> {
+    const document = await this.sourceRepository.findDocument(
+      workspaceId,
+      sourceId,
+      documentId,
+    );
+    if (document === null) {
+      throw new NotFoundException("The document does not exist.");
+    }
+    if (document.source.provider !== SourceProvider.filesystem) {
+      throw new BadRequestException(
+        `Delete this document in ${document.source.provider}, then sync the source.`,
+      );
+    }
+    if (!this.isManagedUploadDirectory(workspaceId, document.source)) {
+      throw new BadRequestException(
+        "This source reads a directory outside the uploads of this workspace, so its files stay.",
+      );
+    }
+
+    const connector = await this.connectorResolver.resolveConnector(sourceId);
+    if (!isDeletableConnector(connector)) {
+      throw new BadRequestException("This source cannot delete a document.");
+    }
+
+    await connector.deleteDocument(document.externalId);
+    await this.sourceRepository.deleteDocument(workspaceId, sourceId, documentId);
   }
 
   /** Return the provider URL where the user grants access, and remember the state value the callback must return. */

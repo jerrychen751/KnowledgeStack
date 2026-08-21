@@ -2,8 +2,9 @@
  * This module is the HTTP surface over the sources of the workspace.
  *
  * It lists sources and their documents, stores uploaded files and syncs them, runs a sync pass on
- * demand, deletes a source, and carries the OAuth grant of a provider from the authorize URL to the stored
- * credential. Every sync pass runs through SyncModule, so this module owns no ingestion logic.
+ * demand, deletes one uploaded file, deletes a source with the files uploaded to it, and carries the OAuth
+ * grant of a provider from the authorize URL to the stored credential. Every sync pass runs through
+ * SyncModule, so this module owns no ingestion logic.
  */
 
 import { Module } from "@nestjs/common";

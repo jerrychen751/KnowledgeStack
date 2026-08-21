@@ -35,3 +35,15 @@ export interface DocumentConnector {
   // A source that cannot answer throws, which stops a rate limit or an outage from reading as a deletion.
   checkDocumentExists(externalId: string): Promise<boolean>;
 }
+
+/** A source whose documents this app may delete at the source itself, not only in the index. */
+export interface DeletableDocumentConnector extends DocumentConnector {
+  /** Delete the document the id names. The caller deletes the stored row. A document already gone succeeds. */
+  deleteDocument(externalId: string): Promise<void>;
+}
+
+export function isDeletableConnector(
+  connector: DocumentConnector,
+): connector is DeletableDocumentConnector {
+  return "deleteDocument" in connector;
+}

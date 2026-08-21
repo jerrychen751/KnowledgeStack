@@ -178,7 +178,7 @@ Every page needs a Google account. `/signin` sends the browser to Google, and th
 
 `/workspaces` picks the workspace the browser reads. Create one, or type the eight-character code a member gave you. A workspace holds its own sources, documents and chunks, and a question reads the open workspace and no other. The seeded demo workspace keeps its documents, and `SELECT name, join_code FROM workspaces;` reads the code that joins it.
 
-`/sources` adds documents. Drag the files in `seed-data/wiki/` onto the page. The API writes them into `UPLOAD_ROOT`, which defaults to `apps/api/.uploads`, then cuts each file into chunks, embeds every chunk, and stores the vectors in `document_chunks`. The page lists each document with its chunk count. `Sync` runs the pass again, and it deletes the rows of a file that no longer exists.
+`/sources` adds documents. Drag the files in `seed-data/wiki/` onto the page. The API writes them into `UPLOAD_ROOT`, which defaults to `apps/api/.uploads`, then cuts each file into chunks, embeds every chunk, and stores the vectors in `document_chunks`. The page lists each document with its chunk count. `Sync` runs the pass again, and it deletes the rows of a file that no longer exists. `Remove` beside a file deletes that file and its chunks. `Remove` on the source deletes the source and every file uploaded to it, so a later upload cannot bring the old files back.
 
 Each workspace indexes its own upload directory, `UPLOAD_ROOT/<workspace id>`, so a file of one workspace never reaches the answers of another.
 

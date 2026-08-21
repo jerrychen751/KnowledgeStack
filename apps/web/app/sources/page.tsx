@@ -46,6 +46,7 @@ export default function SourcesPage(): ReactNode {
   const [notice, setNotice] = useState<{ text: string; failed: boolean } | null>(null);
   const [busyMessage, setBusyMessage] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
+  const [removalAwaitingConfirmId, setRemovalAwaitingConfirmId] = useState<string | null>(null);
   const filePickerRef = useRef<HTMLInputElement>(null);
 
   const loadSources = useCallback(async () => {
@@ -106,6 +107,7 @@ export default function SourcesPage(): ReactNode {
         });
       } finally {
         setBusyMessage("");
+        setRemovalAwaitingConfirmId(null);
       }
     },
     [loadSources],
@@ -235,34 +237,66 @@ export default function SourcesPage(): ReactNode {
                   </p>
                 </div>
                 <div className={styles.cardActions}>
-                  <button
-                    type="button"
-                    className="button"
-                    disabled={isBusy}
-                    onClick={() =>
-                      void runRequest("Syncing", () =>
-                        fetch(`/api/sources/${source.id}/sync`, { method: "POST" }),
-                      )
-                    }
-                  >
-                    Sync
-                  </button>
-                  <button
-                    type="button"
-                    className="button"
-                    disabled={isBusy}
-                    onClick={() =>
-                      void runRequest("Removing", () =>
-                        fetch(`/api/sources/${source.id}`, { method: "DELETE" }),
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
+                  {removalAwaitingConfirmId === source.id ? (
+                    <>
+                      <p className={styles.confirm}>
+                        {source.provider === "filesystem"
+                          ? "Delete this source and every file uploaded to it?"
+                          : `Remove this source? Your pages stay in ${source.provider}.`}
+                      </p>
+                      <button
+                        type="button"
+                        className={`button ${styles.confirmButton}`}
+                        disabled={isBusy}
+                        onClick={() =>
+                          void runRequest("Removing", () =>
+                            fetch(`/api/sources/${source.id}`, { method: "DELETE" }),
+                          )
+                        }
+                      >
+                        Delete
+                      </button>
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={isBusy}
+                        onClick={() => setRemovalAwaitingConfirmId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={isBusy}
+                        onClick={() =>
+                          void runRequest("Syncing", () =>
+                            fetch(`/api/sources/${source.id}/sync`, { method: "POST" }),
+                          )
+                        }
+                      >
+                        Sync
+                      </button>
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={isBusy}
+                        onClick={() => setRemovalAwaitingConfirmId(source.id)}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               {(documentsBySourceId[source.id] ?? []).length === 0 ? null : (
-                <div className={styles.documents}>
+                <div
+                  className={`${styles.documents} ${
+                    source.provider === "filesystem" ? styles.documentsRemovable : ""
+                  }`}
+                >
                   {(documentsBySourceId[source.id] ?? []).map((document) => (
                     <div key={document.id} className={styles.documentRow}>
                       <span className={styles.documentName}>{document.externalTitle}</span>
@@ -275,9 +309,37 @@ export default function SourcesPage(): ReactNode {
                           ? "not text"
                           : `${document._count.chunks} chunks`}
                       </span>
-                      <span className={styles.documentMeta}>
+                      <span className={`${styles.documentMeta} ${styles.documentTime}`}>
                         {formatTime(document.lastIndexedAt)}
                       </span>
+                      {source.provider === "filesystem" ? (
+                        <button
+                          type="button"
+                          className={`${styles.documentRemove} ${
+                            removalAwaitingConfirmId === document.id ? styles.documentRemoveArmed : ""
+                          }`}
+                          disabled={isBusy}
+                          aria-label={
+                            removalAwaitingConfirmId === document.id
+                              ? `Delete ${document.externalTitle}`
+                              : `Remove ${document.externalTitle}`
+                          }
+                          onClick={() => {
+                            if (removalAwaitingConfirmId !== document.id) {
+                              setRemovalAwaitingConfirmId(document.id);
+                              return;
+                            }
+
+                            void runRequest("Deleting", () =>
+                              fetch(`/api/sources/${source.id}/documents/${document.id}`, {
+                                method: "DELETE",
+                              }),
+                            );
+                          }}
+                        >
+                          {removalAwaitingConfirmId === document.id ? "Delete" : "Remove"}
+                        </button>
+                      ) : null}
                     </div>
                   ))}
                 </div>

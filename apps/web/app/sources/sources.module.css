@@ -131,6 +131,25 @@
   display: flex;
   flex: none;
   gap: 0.5rem;
+  align-items: center;
+}
+
+.confirm {
+  max-width: 18rem;
+  color: var(--warn);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.confirmButton {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.confirmButton:hover:not(:disabled) {
+  border-color: var(--warn);
+  background: var(--surface-sunken);
 }
 
 .documents {
@@ -164,6 +183,39 @@
 
 .documentSkipped {
   color: var(--warn);
+}
+
+.documentsRemovable .documentRow {
+  grid-template-columns: minmax(0, 1fr) 7rem 6rem 4.5rem;
+}
+
+.documentRemove {
+  justify-self: end;
+  padding: 0.75rem 0 0.75rem 0.75rem;
+  margin: -0.75rem 0;
+  border: 0;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  text-align: right;
+  transition: color 120ms ease;
+}
+
+.documentRemove:hover:not(:disabled),
+.documentRemove:focus-visible {
+  color: var(--warn);
+  text-decoration: underline;
+}
+
+.documentRemove:disabled {
+  color: var(--rule-strong);
+  cursor: not-allowed;
+}
+
+.documentRemoveArmed {
+  color: var(--warn);
+  font-weight: 600;
+  text-decoration: underline;
 }
 
 .connectors {
@@ -229,7 +281,16 @@
     grid-template-columns: minmax(0, 1fr) 5.5rem;
   }
 
-  .documentRow > :last-child {
+  .documentsRemovable .documentRow {
+    grid-template-columns: minmax(0, 1fr) 5.5rem 4.5rem;
+  }
+
+  .documentTime {
     display: none;
+  }
+
+  .cardActions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }

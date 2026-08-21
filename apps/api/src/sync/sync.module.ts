@@ -15,6 +15,6 @@ import { SyncService } from "./sync.service.js";
 @Module({
   imports: [AuthModule, ConnectorModule, DocumentModule, EmbeddingModule],
   providers: [ConnectorResolver, SyncService],
-  exports: [SyncService],
+  exports: [ConnectorResolver, SyncService],
 })
 export class SyncModule {}

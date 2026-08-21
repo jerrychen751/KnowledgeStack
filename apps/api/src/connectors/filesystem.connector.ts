@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { lstat, open, readdir, realpath, stat } from "node:fs/promises";
+import { lstat, open, readdir, realpath, rm, stat } from "node:fs/promises";
 import {
   basename,
   extname,
@@ -12,8 +12,8 @@ import {
 import { DocumentType } from "../generated/prisma/enums.js";
 
 import {
+  type DeletableDocumentConnector,
   type DocumentBody,
-  type DocumentConnector,
   type DocumentPage,
   type DocumentRef,
   type ListDocumentsOptions,
@@ -45,7 +45,7 @@ function convertToExternalId(
   return relative(rootDirectory, filePath).split(sep).join("/");
 }
 
-export class FilesystemConnector implements DocumentConnector {
+export class FilesystemConnector implements DeletableDocumentConnector {
   private readonly configuredRootDirectory: string;
   private readonly ignoredDirectoryNames: ReadonlySet<string>;
   private readonly ignoredFileNames: ReadonlySet<string>;
@@ -327,6 +327,35 @@ export class FilesystemConnector implements DocumentConnector {
     } finally {
       await fileHandle.close();
     }
+  }
+
+  /**
+   * Delete the file the id names.
+   *
+   * resolveFilePath refuses an id that escapes the root, names a symbolic link, or names anything but a
+   * regular file, so no id from the database can reach a file this source does not serve. A file this
+   * source no longer serves succeeds, because the caller wants it absent, and checkDocumentExists reports
+   * the same paths gone.
+   */
+  async deleteDocument(externalId: string): Promise<void> {
+    let filePath: string;
+    try {
+      const rootDirectory = await realpath(this.configuredRootDirectory);
+      filePath = await this.resolveFilePath(rootDirectory, externalId);
+    } catch (error) {
+      if (error instanceof TypeError) {
+        return;
+      }
+
+      const errorCode = (error as NodeJS.ErrnoException).code;
+      if (errorCode === "ENOENT" || errorCode === "ENOTDIR") {
+        return;
+      }
+
+      throw error;
+    }
+
+    await rm(filePath, { force: true });
   }
 
   async checkDocumentExists(externalId: string): Promise<boolean> {
