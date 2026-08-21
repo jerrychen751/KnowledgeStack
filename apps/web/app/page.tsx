@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type {
-  ChatModel,
   ChatModelListResponse,
   ChatRequest,
   ChatStreamEvent,
@@ -17,8 +16,8 @@ import styles from "./ask.module.css";
 
 type Turn = {
   question: string;
-  modelLabel: string;
-  searches: string[];
+  modelId: string;
+  steps: { action: string; detail: string }[];
   citations: Citation[];
   answer: string;
   state: "running" | "done" | "error";
@@ -105,7 +104,7 @@ export default function AskPage(): ReactNode {
   const [activeCitationIndex, setActiveCitationIndex] = useState<number | null>(null);
   const [openChunkIds, setOpenChunkIds] = useState<string[]>([]);
   const [sources, setSources] = useState<Source[] | null>(null);
-  const [models, setModels] = useState<readonly ChatModel[]>([]);
+  const [models, setModels] = useState<readonly string[]>([]);
   const [modelId, setModelId] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const streamRef = useRef<HTMLDivElement>(null);
@@ -175,8 +174,8 @@ export default function AskPage(): ReactNode {
         ...previous,
         {
           question: asked,
-          modelLabel: models.find((model) => model.id === modelId)?.label ?? "",
-          searches: [],
+          modelId: models.includes(modelId) ? modelId : "",
+          steps: [],
           citations: [],
           answer: "",
           state: "running",
@@ -229,8 +228,11 @@ export default function AskPage(): ReactNode {
             }
 
             const event = JSON.parse(frame.slice(6)) as ChatStreamEvent;
-            if (event.type === "search") {
-              changeTurn((turn) => ({ ...turn, searches: [...turn.searches, event.query] }));
+            if (event.type === "tool") {
+              changeTurn((turn) => ({
+                ...turn,
+                steps: [...turn.steps, { action: event.action, detail: event.detail }],
+              }));
             } else if (event.type === "citations") {
               changeTurn((turn) => ({
                 ...turn,
@@ -325,19 +327,21 @@ export default function AskPage(): ReactNode {
                   className={`${styles.turn} ${position === activeTurnPosition ? styles.turnActive : ""}`}
                 >
                   <h2 className={styles.question}>{turn.question}</h2>
-                  {turn.modelLabel === "" ? null : (
+                  {turn.modelId === "" ? null : (
                     <p className={styles.step}>
                       <span className={styles.stepLabel}>model</span>
-                      <span className={styles.stepQuery}>{turn.modelLabel}</span>
+                      <span className={styles.stepQuery}>{turn.modelId}</span>
                     </p>
                   )}
-                  {turn.searches.map((search, searchPosition) => (
-                    <p key={searchPosition} className={styles.step}>
-                      <span className={styles.stepLabel}>searched</span>
-                      <span className={styles.stepQuery}>{search}</span>
+                  {turn.steps.map((step, stepPosition) => (
+                    <p key={stepPosition} className={styles.step}>
+                      <span className={styles.stepLabel}>{step.action}</span>
+                      {step.detail === "" ? null : (
+                        <span className={styles.stepQuery}>{step.detail}</span>
+                      )}
                     </p>
                   ))}
-                  {turn.state === "running" && turn.searches.length === 0 ? (
+                  {turn.state === "running" && turn.steps.length === 0 ? (
                     <p className={styles.step}>
                       <span className={styles.stepLabel}>reading the question</span>
                     </p>
@@ -405,8 +409,8 @@ export default function AskPage(): ReactNode {
                 onChange={(event) => setModelId(event.target.value)}
               >
                 {models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.label} · {model.note}
+                  <option key={model} value={model}>
+                    {model}
                   </option>
                 ))}
               </select>

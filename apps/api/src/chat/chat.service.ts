@@ -5,11 +5,10 @@ import OpenAI from "openai";
 import type {
   ChatAnswerEvent,
   ChatMessage,
-  ChatModel,
   Citation,
 } from "@knowledgestack/shared/chat";
 
-import { SearchDocumentsTool } from "../tools/search-documents.tool.js";
+import { ToolRegistry } from "../tools/tool.registry.js";
 
 @Injectable()
 export class ChatService {
@@ -21,15 +20,15 @@ export class ChatService {
    * 2.00 and 12.00, and sol costs 5.00 and 30.00. No earlier model earns a place, because gpt-5.5 costs what
    * sol costs and reasons worse, and gpt-5.4-mini costs more than luna and reasons worse.
    */
-  readonly models: readonly ChatModel[] = [
-    { id: "gpt-5.6-luna", label: "Luna", note: "fastest, lowest cost" },
-    { id: "gpt-5.6-terra", label: "Terra", note: "deeper reasoning" },
-    { id: "gpt-5.6-sol", label: "Sol", note: "highest quality, highest cost" },
+  readonly models: readonly string[] = [
+    "gpt-5.6-luna",
+    "gpt-5.6-terra",
+    "gpt-5.6-sol",
   ];
 
   private readonly client: OpenAI;
 
-  constructor(private readonly searchDocumentsTool: SearchDocumentsTool) {
+  constructor(private readonly toolRegistry: ToolRegistry) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error("OPENAI_API_KEY is not set in the environment");
@@ -41,7 +40,7 @@ export class ChatService {
   /**
    * Answer the last user message from the stored documents, and report every step as it happens.
    *
-   * The generator yields a search event before each retrieval, a citations event once the chunks arrive, and
+   * The generator yields a tool event before each call, a citations event once the chunks arrive, and
    * a delta event for every piece of answer text. The caller writes each event to the client as it arrives.
    * The model decides how often to search, up to three rounds; the fourth round would cost more than it
    * returns on a corpus this size.
@@ -56,6 +55,7 @@ export class ChatService {
     messages: readonly ChatMessage[],
     modelId: string,
   ): AsyncGenerator<ChatAnswerEvent> {
+    // 
     const input: OpenAI.Responses.ResponseInputItem[] = messages.map((message) => ({
       role: message.role,
       content: message.content,
@@ -78,27 +78,7 @@ export class ChatService {
         ].join("\n"),
         store: false,
         stream: true,
-        tools: [
-          {
-            type: "function",
-            name: "search_documents",
-            description:
-              "Search the workspace documents by meaning and return the closest chunks.",
-            strict: true,
-            parameters: {
-              type: "object",
-              properties: {
-                query: {
-                  type: "string",
-                  description:
-                    "The words to search for. Use the vocabulary of the documents, not of the question.",
-                },
-              },
-              required: ["query"],
-              additionalProperties: false,
-            },
-          },
-        ],
+        tools: this.toolRegistry.functionTools,
         truncation: "auto",
       });
 
@@ -108,7 +88,7 @@ export class ChatService {
           yield { type: "delta", text: event.delta };
         } else if (
           event.type === "response.output_item.done" &&
-          // The request declares one function tool and no hosted tool, so no other item type can arrive.
+          // The request declares function tools and no hosted tool, so no other item type can arrive.
           (event.item.type === "message" ||
             event.item.type === "reasoning" ||
             event.item.type === "function_call")
@@ -125,38 +105,54 @@ export class ChatService {
       }
 
       for (const toolCall of toolCalls) {
-        let query = "";
+        let args: Record<string, unknown> = {};
         try {
-          const parsedArguments = JSON.parse(toolCall.arguments) as { query?: unknown };
-          query = typeof parsedArguments.query === "string" ? parsedArguments.query : "";
+          const parsedArguments = JSON.parse(toolCall.arguments) as unknown;
+          // "null", "7" and "[]" all parse, and every tool reads its arguments by name.
+          if (
+            typeof parsedArguments === "object" &&
+            parsedArguments !== null &&
+            !Array.isArray(parsedArguments)
+          ) {
+            args = parsedArguments as Record<string, unknown>;
+          }
         } catch {
-          query = "";
+          args = {};
         }
 
-        if (query.trim() === "") {
+        if (!this.toolRegistry.toolNames.includes(toolCall.name)) {
           input.push({
             type: "function_call_output",
             call_id: toolCall.call_id,
-            output: "The call carried no query. Call search_documents again with a query string.",
+            output: `No tool is named ${toolCall.name}. Call one of ${this.toolRegistry.toolNames.join(", ")}.`,
           });
           continue;
         }
 
-        yield { type: "search", query };
-        const results = await this.searchDocumentsTool.searchDocuments(workspaceId, query, 6);
-        const roundCitations = results.map((result) => {
+        yield { type: "tool", ...this.toolRegistry.describeCall(toolCall.name, args) };
+        const result = await this.toolRegistry.runTool(toolCall.name, workspaceId, args);
+        if ("text" in result) {
+          input.push({
+            type: "function_call_output",
+            call_id: toolCall.call_id,
+            output: result.text,
+          });
+          continue;
+        }
+
+        const roundCitations = result.citations.map((found) => {
           // A second search often returns a chunk the first one already numbered; that chunk keeps its number.
-          const citation = citationsByChunkId.get(result.chunkId) ?? {
+          const citation = citationsByChunkId.get(found.chunkId) ?? {
             index: citationsByChunkId.size + 1,
-            chunkId: result.chunkId,
-            externalTitle: result.externalTitle,
-            externalUrl: result.externalUrl,
-            provider: result.provider,
-            headingPath: result.headingPath,
-            text: result.text,
-            score: result.score,
+            chunkId: found.chunkId,
+            externalTitle: found.externalTitle,
+            externalUrl: found.externalUrl,
+            provider: found.provider,
+            headingPath: found.headingPath,
+            text: found.text,
+            score: found.score,
           };
-          citationsByChunkId.set(result.chunkId, citation);
+          citationsByChunkId.set(found.chunkId, citation);
           return citation;
         });
 

@@ -1,9 +1,9 @@
 /**
  * This module answers a question from the stored documents.
  *
- * The service runs one OpenAI chat model with a single tool, search_documents, which reaches the tools
- * module. The controller streams every search, every retrieved chunk and every piece of answer text to the
- * client as the model produces them.
+ * The service runs one OpenAI chat model with every tool the tools module registered. The controller
+ * streams every tool call, every retrieved chunk and every piece of answer text to the client as the model
+ * produces them.
  */
 
 import { Module } from "@nestjs/common";

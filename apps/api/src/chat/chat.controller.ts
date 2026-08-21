@@ -27,21 +27,18 @@ export class ChatController {
   listModels(): ChatModelListResponse {
     return {
       models: this.chatService.models,
-      defaultModelId: this.chatService.models[0].id,
+      defaultModelId: this.chatService.models[0],
     };
   }
 
   private readModelId(body: unknown): string {
     const modelId = (body as { model?: unknown } | null)?.model;
     if (modelId === undefined || modelId === null || modelId === "") {
-      return this.chatService.models[0].id;
+      return this.chatService.models[0];
     }
-    if (
-      typeof modelId !== "string" ||
-      !this.chatService.models.some((model) => model.id === modelId)
-    ) {
+    if (typeof modelId !== "string" || !this.chatService.models.includes(modelId)) {
       throw new BadRequestException(
-        `model must be one of ${this.chatService.models.map((model) => model.id).join(", ")}.`,
+        `model must be one of ${this.chatService.models.join(", ")}.`,
       );
     }
 
@@ -71,7 +68,7 @@ export class ChatController {
   /**
    * Stream the answer to the last message as Server-Sent Events.
    *
-   * Every frame is one JSON object on a `data:` line. The `type` field is `search`, `citations` or `delta`
+   * Every frame is one JSON object on a `data:` line. The `type` field is `tool`, `citations` or `delta`
    * while the answer runs, then `done` on success or `error` on failure. The client must treat a stream that
    * ends without `done` as a failure, because the headers leave before the first search starts.
    */

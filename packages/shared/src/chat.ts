@@ -8,16 +8,9 @@ export type ChatMessage = {
   content: string;
 };
 
-/** One model an answer can run on. `note` is display text, such as "fastest, lowest cost". */
-export type ChatModel = {
-  id: string;
-  label: string;
-  note: string;
-};
-
-/** The body `GET /chat/models` answers with, cheapest model first. `defaultModelId` names the model that answers a request without a `model` field. */
+/** The body `GET /chat/models` answers with, cheapest model first. Each entry is a model id, such as "gpt-5.6-luna", and the browser shows it as written. `defaultModelId` names the model that answers a request without a `model` field. */
 export type ChatModelListResponse = {
-  models: readonly ChatModel[];
+  models: readonly string[];
   defaultModelId: string;
 };
 
@@ -39,9 +32,9 @@ export type Citation = {
   score: number;
 };
 
-/** A frame the answer generator produces while it runs. */
+/** A frame the answer generator produces while it runs. A `tool` frame reports one call as the browser shows it: `action` is the past-tense verb, such as "searched", and `detail` is the argument text. */
 export type ChatAnswerEvent =
-  | { type: "search"; query: string }
+  | { type: "tool"; action: string; detail: string }
   | { type: "citations"; citations: Citation[] }
   | { type: "delta"; text: string };
 
