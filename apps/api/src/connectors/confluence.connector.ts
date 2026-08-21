@@ -302,9 +302,9 @@ export class ConfluenceConnector implements DocumentConnector {
     ) as AtlassianDocumentNode;
 
     return {
-      contentFormat: "markdown",
+      textFormat: "markdown",
       externalId: page.id,
-      contents: renderAtlassianNode(documentNode)
+      text: renderAtlassianNode(documentNode)
         .replace(/\n{3,}/g, "\n\n")
         .trim(),
       externalUpdatedAt: new Date(page.version.createdAt),

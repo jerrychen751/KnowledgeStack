@@ -12,11 +12,15 @@ next-env.d.ts
 apps/api/src/generated/
 
 # === Environment & secrets ===
-# .env.example IS committed as a template; every real .env is ignored
+# Git tracks .env.example as a template; git ignores every real .env
 .env
 .env.*
 !.env.example
 *.pem
+
+# === Uploaded documents ===
+# The filesystem connector indexes this directory; the files belong to the person who uploaded them
+.uploads/
 
 # === Logs ===
 *.log
@@ -26,7 +30,7 @@ yarn-debug.log*
 yarn-error.log*
 logs/
 
-# === Testing ===
+# === Test output ===
 coverage/
 .nyc_output/
 

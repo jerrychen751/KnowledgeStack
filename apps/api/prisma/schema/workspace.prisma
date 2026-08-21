@@ -1,0 +1,69 @@
+model Workspace {
+  // Prisma marks this field as the primary key and generates a cuid when the write gives no value
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique // a unique url-safe identifier
+  // The code a member gives to a new person, such as "K7QW2M4D"; workspace.service.ts normalizes typed input before it compares
+  joinCode  String   @unique @map("join_code")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // This is a relation field; it does not create a column in the Workspace table
+  // Prisma makes a field a relation from its type
+  connections DBConnection[]
+  credentials SourceCredential[]
+  memberships WorkspaceMembership[]
+  sessions    UserSession[]
+  sources     Source[]
+
+  @@map("workspaces")
+}
+
+// One Google account. The row outlives every workspace the person joins, so it holds no workspace column.
+model User {
+  id                  String   @id @default(cuid())
+  // Google's "sub" claim. The address in externalEmail changes when the person renames the account, so it cannot key this row.
+  externalId          String   @unique @map("external_id")
+  externalEmail       String   @map("external_email")
+  externalDisplayName String   @map("external_display_name")
+  externalImageUrl    String?  @map("external_image_url")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  memberships WorkspaceMembership[]
+  sessions    UserSession[]
+
+  @@map("users")
+}
+
+model WorkspaceMembership {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  workspaceId String    @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_memberships")
+}
+
+// One signed-in browser. The cookie carries the token and this row keeps only its SHA-256, so a database
+// dump signs nobody in.
+model UserSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // The workspace this browser reads, null until the person creates or joins one
+  activeWorkspaceId String?    @map("active_workspace_id")
+  activeWorkspace   Workspace? @relation(fields: [activeWorkspaceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("user_sessions")
+}

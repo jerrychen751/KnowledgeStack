@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
-import { DocumentSourceRepository } from "../documents/document-source.repository.js";
 import { DocumentRepository } from "../documents/document.repository.js";
+import { SourceSyncRepository } from "../documents/source-sync.repository.js";
 import { DocumentType } from "../generated/prisma/enums.js";
 import { EmbeddingService } from "../embedding/embedding.service.js";
 
@@ -13,12 +13,12 @@ export class SyncService {
   constructor(
     private readonly connectorResolver: ConnectorResolver,
     private readonly documentRepository: DocumentRepository,
-    private readonly documentSourceRepository: DocumentSourceRepository,
+    private readonly sourceSyncRepository: SourceSyncRepository,
     private readonly embeddingService: EmbeddingService,
   ) {}
 
   /**
-   * Reconcile one document source with the database, one page of source results at a time.
+   * Reconcile one source with the database, one page of source results at a time.
    *
    * The method writes the metadata of every document the source lists, and stamps `lastSeenAt` with the pass
    * start time. It re-indexes a document when the database holds no index time for it, or when the source
@@ -32,10 +32,10 @@ export class SyncService {
    * A failure aborts the pass. The deletion sweep never runs, the source keeps its previous `lastSyncedAt`,
    * and every document indexed so far keeps its new chunks.
    */
-  async sync(documentSourceId: string): Promise<void> {
+  async sync(sourceId: string): Promise<void> {
     const syncStartedAt = new Date();
 
-    const connector = await this.connectorResolver.resolveConnector(documentSourceId);
+    const connector = await this.connectorResolver.resolveConnector(sourceId);
     let cursor: string | undefined;
     do {
       const page = await connector.listDocuments({
@@ -47,7 +47,7 @@ export class SyncService {
         const databaseDocument =
           await this.documentRepository.upsertObservedDocument(
             document,
-            documentSourceId,
+            sourceId,
             syncStartedAt,
           );
         // Docling is not built, so no connector can return the text of an attachment.
@@ -85,7 +85,7 @@ export class SyncService {
     } while (cursor !== undefined);
 
     const staleDocuments = await this.documentRepository.listStaleDocuments(
-      documentSourceId,
+      sourceId,
       syncStartedAt,
     );
     const staleDocumentIds: string[] = [];
@@ -100,8 +100,8 @@ export class SyncService {
     }
 
     await this.documentRepository.deleteDocuments(staleDocumentIds);
-    await this.documentSourceRepository.recordSyncCompletion(
-      documentSourceId,
+    await this.sourceSyncRepository.recordSyncCompletion(
+      sourceId,
       syncStartedAt,
     );
   }

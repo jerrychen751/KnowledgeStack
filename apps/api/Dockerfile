@@ -69,6 +69,8 @@ COPY --from=build --chown=node:node /workspace/apps/api/dist ./dist
 COPY --from=build --chown=node:node /workspace/packages/shared/package.json /workspace/packages/shared/package.json
 COPY --from=build --chown=node:node /workspace/packages/shared/dist /workspace/packages/shared/dist
 
+RUN mkdir -p /data/uploads && chown node:node /data/uploads
+
 USER node
 
 EXPOSE 3001

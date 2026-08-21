@@ -1,5 +1,5 @@
 // PostgreSQL rejects a provider value until its enum migration commits.
-enum DocumentSourceProvider {
+enum SourceProvider {
   filesystem
   notion
   confluence
@@ -18,48 +18,48 @@ enum SourceStatus {
   error
 }
 
-model DocumentSource {
-  id                  String                 @id @default(cuid())
-  provider            DocumentSourceProvider
+model Source {
+  id                  String         @id @default(cuid())
+  provider            SourceProvider
   // The provider's id for the content container: a Notion workspace_id, an Atlassian cloudId, or a filesystem root path
-  externalId          String                 @map("external_id")
+  externalId          String         @map("external_id")
   // A Confluence space id. The other providers leave this value null.
-  externalSpaceId     String?                @map("external_space_id")
+  externalSpaceId     String?        @map("external_space_id")
   // Mutable provider name, such as Notion workspace_name; never use it as an identifier
-  externalDisplayName String                 @map("external_display_name")
+  externalDisplayName String         @map("external_display_name")
   // Connector settings, such as an Atlassian site URL. Credentials never enter this value.
-  config              Json                   @default("{}")
-  status              SourceStatus           @default(active)
+  config              Json           @default("{}")
+  status              SourceStatus   @default(active)
   // Start time of the last sync pass
-  lastSyncedAt        DateTime?              @map("last_synced_at")
-  createdAt           DateTime               @default(now()) @map("created_at")
-  updatedAt           DateTime               @updatedAt @map("updated_at")
+  lastSyncedAt        DateTime?      @map("last_synced_at")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
 
-  tenantId String @map("tenant_id")
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspaceId String    @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   // One OAuth credential can supply several Confluence space sources. A filesystem source has no credential.
   credentialId String?           @map("credential_id")
-  credential   SourceCredential? @relation(fields: [credentialId, tenantId, provider], references: [id, tenantId, provider], onDelete: Restrict)
+  credential   SourceCredential? @relation(fields: [credentialId, workspaceId, provider], references: [id, workspaceId, provider], onDelete: Restrict)
   documents    Document[]
 
-  @@unique([tenantId, provider, credentialId], map: "document_sources_notion_identity_key", where: raw("\"provider\" = 'notion'"))
-  @@unique([tenantId, provider, externalId, externalSpaceId], map: "document_sources_confluence_identity_key", where: raw("\"provider\" = 'confluence' AND \"external_space_id\" IS NOT NULL"))
-  @@unique([tenantId, provider, externalId], map: "document_sources_filesystem_identity_key", where: raw("\"provider\" = 'filesystem'"))
-  @@index([tenantId])
-  @@index([credentialId, tenantId, provider])
-  @@map("document_sources")
+  @@unique([workspaceId, provider, credentialId], map: "sources_notion_identity_key", where: raw("\"provider\" = 'notion'"))
+  @@unique([workspaceId, provider, externalId, externalSpaceId], map: "sources_confluence_identity_key", where: raw("\"provider\" = 'confluence' AND \"external_space_id\" IS NOT NULL"))
+  @@unique([workspaceId, provider, externalId], map: "sources_filesystem_identity_key", where: raw("\"provider\" = 'filesystem'"))
+  @@index([workspaceId])
+  @@index([credentialId, workspaceId, provider])
+  @@map("sources")
 }
 
 model SourceCredential {
-  id                  String                 @id @default(cuid())
-  provider            DocumentSourceProvider
+  id                  String         @id @default(cuid())
+  provider            SourceProvider
   // The authorization id: a Notion bot_id or an Atlassian account_id. A legacy Notion row stays null until reauthorization.
-  externalId          String?                @map("external_id")
-  externalDisplayName String                 @map("external_display_name")
+  externalId          String?        @map("external_id")
+  externalDisplayName String         @map("external_display_name")
   // The provider user that granted access. An internal Notion integration can leave both values null.
-  externalUserId      String?                @map("external_user_id")
-  externalUserEmail   String?                @map("external_user_email")
+  externalUserId      String?        @map("external_user_id")
+  externalUserEmail   String?        @map("external_user_email")
 
   encryptedAccessToken  String       @map("encrypted_access_token")
   encryptedRefreshToken String?      @map("encrypted_refresh_token")
@@ -69,13 +69,13 @@ model SourceCredential {
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")
 
-  tenantId String           @map("tenant_id")
-  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sources  DocumentSource[]
+  workspaceId String    @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sources     Source[]
 
-  @@unique([tenantId, provider, externalId])
-  @@unique([id, tenantId, provider])
-  @@index([tenantId])
+  @@unique([workspaceId, provider, externalId])
+  @@unique([id, workspaceId, provider])
+  @@index([workspaceId])
   @@map("source_credentials")
 }
 
@@ -96,13 +96,13 @@ model Document {
   createdAt          DateTime     @default(now()) @map("created_at")
   updatedAt          DateTime     @updatedAt @map("updated_at")
 
-  documentSourceId String          @map("document_source_id")
-  documentSource   DocumentSource  @relation(fields: [documentSourceId], references: [id], onDelete: Cascade)
-  chunks           DocumentChunk[]
+  sourceId String          @map("source_id")
+  source   Source          @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  chunks   DocumentChunk[]
 
-  @@unique([documentSourceId, externalId])
+  @@unique([sourceId, externalId])
   // The reconcile sweep reads the rows of one source whose lastSeenAt predates the start of the pass
-  @@index([documentSourceId, lastSeenAt])
+  @@index([sourceId, lastSeenAt])
   @@map("documents")
 }
 

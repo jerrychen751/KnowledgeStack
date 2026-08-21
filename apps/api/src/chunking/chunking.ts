@@ -15,7 +15,7 @@ type Chunk = {
   headingPath: readonly string[];
 };
 
-type ChunkPolicy = {
+type ChunkOptions = {
   maxTokens: number;
   minTokens: number;
 };
@@ -40,9 +40,9 @@ async function splitText(text: string, maxTokens: number): Promise<string[]> {
 /** Cut plain text into chunks. Plain text carries no structure, so every heading path is empty. */
 async function chunkText(
   text: string,
-  policy: ChunkPolicy,
+  options: ChunkOptions,
 ): Promise<Chunk[]> {
-  const pieces = await splitText(text, policy.maxTokens);
+  const pieces = await splitText(text, options.maxTokens);
 
   return pieces.map((piece) => ({
     text: piece,
@@ -155,7 +155,7 @@ async function splitOversizeNode(
  */
 async function chunkMarkdown(
   source: string,
-  policy: ChunkPolicy,
+  options: ChunkOptions,
 ): Promise<Chunk[]> {
   const root = fromMarkdown(source, {
     extensions: [gfm()],
@@ -182,12 +182,12 @@ async function chunkMarkdown(
     const headingPath = headingStack.map((heading) => heading.text);
     const text = readNodeSource(node, source);
     const tokenCount = countTokens(text);
-    if (tokenCount <= policy.maxTokens) {
+    if (tokenCount <= options.maxTokens) {
       chunks.push({ text, tokenCount, headingPath });
       continue;
     }
 
-    for (const piece of await splitOversizeNode(node, source, policy.maxTokens)) {
+    for (const piece of await splitOversizeNode(node, source, options.maxTokens)) {
       chunks.push({
         text: piece,
         tokenCount: countTokens(piece),
@@ -277,7 +277,7 @@ function mergeLeadingChunks(
  */
 function packChunks(
   chunks: readonly Chunk[],
-  policy: ChunkPolicy,
+  options: ChunkOptions,
 ): Chunk[] {
   const packed: Chunk[] = [];
   let pending: Chunk[] = [];
@@ -285,14 +285,14 @@ function packChunks(
 
   for (const chunk of chunks) {
     const fits =
-      estimatedTokens + chunk.tokenCount <= policy.maxTokens &&
+      estimatedTokens + chunk.tokenCount <= options.maxTokens &&
       isSameSection(pending[0] ?? chunk, chunk);
     if (pending.length > 0 && !fits) {
       let remaining: readonly Chunk[] = pending;
       while (remaining.length > 0) {
         const { merged, rest } = mergeLeadingChunks(
           remaining,
-          policy.maxTokens,
+          options.maxTokens,
         );
         packed.push(merged);
         remaining = rest;
@@ -307,7 +307,7 @@ function packChunks(
 
   let remaining: readonly Chunk[] = pending;
   while (remaining.length > 0) {
-    const { merged, rest } = mergeLeadingChunks(remaining, policy.maxTokens);
+    const { merged, rest } = mergeLeadingChunks(remaining, options.maxTokens);
     packed.push(merged);
     remaining = rest;
   }
@@ -319,11 +319,11 @@ function packChunks(
   if (
     last !== undefined &&
     previous !== undefined &&
-    last.tokenCount < policy.minTokens &&
+    last.tokenCount < options.minTokens &&
     isSameSection(previous, last)
   ) {
     const merged = joinChunks([previous, last]);
-    if (merged.tokenCount <= policy.maxTokens) {
+    if (merged.tokenCount <= options.maxTokens) {
       packed.splice(-2, 2, merged);
     }
   }
@@ -337,18 +337,18 @@ function packChunks(
  */
 export async function createChunks(
   body: DocumentBody,
-  policy?: Partial<ChunkPolicy>,
+  options?: Partial<ChunkOptions>,
 ): Promise<Chunk[]> {
-  const resolvedPolicy: ChunkPolicy = {
+  const resolvedOptions: ChunkOptions = {
     maxTokens: 512,
     minTokens: 64,
-    ...policy,
+    ...options,
   };
 
   const chunks =
-    body.contentFormat === "markdown"
-      ? await chunkMarkdown(body.contents, resolvedPolicy)
-      : await chunkText(body.contents, resolvedPolicy);
+    body.textFormat === "markdown"
+      ? await chunkMarkdown(body.text, resolvedOptions)
+      : await chunkText(body.text, resolvedOptions);
 
-  return packChunks(chunks, resolvedPolicy);
+  return packChunks(chunks, resolvedOptions);
 }

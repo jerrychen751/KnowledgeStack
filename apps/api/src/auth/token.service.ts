@@ -31,13 +31,13 @@ type PendingTokenRequest = {
  */
 class ReauthRequiredError extends Error {
   readonly reason: string;
-  readonly documentSourceId: string;
+  readonly sourceId: string;
 
-  constructor(documentSourceId: string, reason: string) {
-    super(`The document source ${documentSourceId} needs a new grant: ${reason}`);
+  constructor(sourceId: string, reason: string) {
+    super(`The source ${sourceId} needs a new grant: ${reason}`);
     this.name = "ReauthRequiredError";
     this.reason = reason;
-    this.documentSourceId = documentSourceId;
+    this.sourceId = sourceId;
   }
 }
 
@@ -177,26 +177,26 @@ export class TokenService {
   }
 
   /**
-   * Return a plaintext access token for a document source, and refresh it first when it expires within a
+   * Return a plaintext access token for a source, and refresh it first when it expires within a
    * minute. A refresh writes the rotated credential back to the row. Never log or store the return value.
    * Throws ReauthRequiredError once the row carries status reauth_required, and TypeError when the source
    * holds no credential.
    */
-  async getAccessToken(documentSourceId: string): Promise<string> {
-    return this.requestAccessToken(documentSourceId, false);
+  async getAccessToken(sourceId: string): Promise<string> {
+    return this.requestAccessToken(sourceId, false);
   }
 
   /** Refresh the credential even when the provider returns no expiry time. */
-  async refreshAccessToken(documentSourceId: string): Promise<string> {
-    return this.requestAccessToken(documentSourceId, true);
+  async refreshAccessToken(sourceId: string): Promise<string> {
+    return this.requestAccessToken(sourceId, true);
   }
 
   private async requestAccessToken(
-    documentSourceId: string,
+    sourceId: string,
     forceRefresh: boolean,
   ): Promise<string> {
-    const documentSource = await this.prisma.documentSource.findUniqueOrThrow({
-      where: { id: documentSourceId },
+    const source = await this.prisma.source.findUniqueOrThrow({
+      where: { id: sourceId },
       select: {
         credential: {
           // PrismaService omits both token columns globally, so this query re-enables them.
@@ -204,24 +204,24 @@ export class TokenService {
         },
       },
     });
-    if (documentSource.credential === null) {
+    if (source.credential === null) {
       throw new TypeError(
-        `The document source ${documentSourceId} holds no credential.`,
+        `The source ${sourceId} holds no credential.`,
       );
     }
 
-    const credentialId = documentSource.credential.id;
+    const credentialId = source.credential.id;
     const pendingRequest = this.pendingTokenRequests.get(credentialId);
     if (pendingRequest !== undefined) {
       try {
         const accessToken = await pendingRequest.promise;
         if (forceRefresh && !pendingRequest.forceRefresh) {
-          return this.requestAccessToken(documentSourceId, true);
+          return this.requestAccessToken(sourceId, true);
         }
         return accessToken;
       } catch (error) {
         if (error instanceof ReauthRequiredError) {
-          throw new ReauthRequiredError(documentSourceId, error.reason);
+          throw new ReauthRequiredError(sourceId, error.reason);
         }
         throw error;
       }
@@ -229,8 +229,8 @@ export class TokenService {
 
     // No await can separate this call from the set below, or two callers each start a refresh.
     const tokenRequest = this.resolveAccessToken(
-      documentSourceId,
-      documentSource.credential,
+      sourceId,
+      source.credential,
       forceRefresh,
     ).finally(() => {
       this.pendingTokenRequests.delete(credentialId);
@@ -244,13 +244,13 @@ export class TokenService {
   }
 
   private async resolveAccessToken(
-    documentSourceId: string,
+    sourceId: string,
     credential: SourceCredentialModel,
     forceRefresh: boolean,
   ): Promise<string> {
     if (credential.status === SourceStatus.reauth_required) {
       throw new ReauthRequiredError(
-        documentSourceId,
+        sourceId,
         "the credential needs a new grant",
       );
     }
@@ -267,7 +267,7 @@ export class TokenService {
     }
 
     return this.refreshCredentialAccessToken(
-      documentSourceId,
+      sourceId,
       credential.id,
       forceRefresh,
     );
@@ -278,7 +278,7 @@ export class TokenService {
    * process reads the new token after it gets the lock.
    */
   private async refreshCredentialAccessToken(
-    documentSourceId: string,
+    sourceId: string,
     credentialId: string,
     forceRefresh: boolean,
   ): Promise<string> {
@@ -316,7 +316,7 @@ export class TokenService {
 
         if (!isOAuthProvider(credential.provider)) {
           throw new TypeError(
-            `The document source ${documentSourceId} holds no OAuth grant.`,
+            `The source ${sourceId} holds no OAuth grant.`,
           );
         }
         if (credential.encryptedRefreshToken === null) {
@@ -370,7 +370,7 @@ export class TokenService {
 
     if ("reauthReason" in refreshResult) {
       throw new ReauthRequiredError(
-        documentSourceId,
+        sourceId,
         refreshResult.reauthReason,
       );
     }
@@ -386,7 +386,7 @@ export class TokenService {
       where: { id: credentialId },
       data: { status: SourceStatus.reauth_required },
     });
-    await transaction.documentSource.updateMany({
+    await transaction.source.updateMany({
       where: { credentialId },
       data: { status: SourceStatus.reauth_required },
     });

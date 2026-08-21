@@ -19,7 +19,7 @@ import {
   type ListDocumentsOptions,
 } from "./connector.types.js";
 
-export type FileSystemConnectorOptions = {
+export type FilesystemConnectorOptions = {
   // The owner of this directory must prevent untrusted directory-entry changes during a read.
   rootDirectory: string;
   ignoredDirectoryNames?: readonly string[];
@@ -45,16 +45,16 @@ function convertToExternalId(
   return relative(rootDirectory, filePath).split(sep).join("/");
 }
 
-export class FileSystemConnector implements DocumentConnector {
+export class FilesystemConnector implements DocumentConnector {
   private readonly configuredRootDirectory: string;
   private readonly ignoredDirectoryNames: ReadonlySet<string>;
   private readonly ignoredFileNames: ReadonlySet<string>;
   private readonly maxFileSizeBytes: number;
   private readonly textExtensions: ReadonlySet<string>;
 
-  constructor(options: FileSystemConnectorOptions) {
+  constructor(options: FilesystemConnectorOptions) {
     if (options.rootDirectory.trim() === "") {
-      throw new TypeError("The file system root directory cannot be empty.");
+      throw new TypeError("The filesystem root directory cannot be empty.");
     }
 
     const maxFileSizeBytes = options.maxFileSizeBytes ?? 10 * 1024 * 1024;
@@ -169,7 +169,7 @@ export class FileSystemConnector implements DocumentConnector {
         continue;
       }
 
-      const fileStat = await stat(entryPath);
+      const fileStatus = await stat(entryPath);
       const externalParentId = convertToExternalId(rootDirectory, directory);
       yield {
         externalId,
@@ -183,7 +183,7 @@ export class FileSystemConnector implements DocumentConnector {
         documentType: this.isTextFile(entryPath)
           ? DocumentType.page
           : DocumentType.attachment,
-        externalUpdatedAt: fileStat.mtime,
+        externalUpdatedAt: fileStatus.mtime,
       };
     }
   }
@@ -244,7 +244,7 @@ export class FileSystemConnector implements DocumentConnector {
     const rootDirectory = await realpath(this.configuredRootDirectory);
     const rootStatus = await stat(rootDirectory);
     if (!rootStatus.isDirectory()) {
-      throw new TypeError("The file system root must be a directory.");
+      throw new TypeError("The filesystem root must be a directory.");
     }
 
     const pageDocuments: DocumentRef[] = [];
@@ -292,16 +292,16 @@ export class FileSystemConnector implements DocumentConnector {
         );
       }
 
-      const contentChunks: Buffer[] = [];
-      for await (const contentChunk of fileHandle.createReadStream({
+      const fileParts: Buffer[] = [];
+      for await (const filePart of fileHandle.createReadStream({
         autoClose: false,
         end: this.maxFileSizeBytes,
         start: 0,
       })) {
-        contentChunks.push(contentChunk);
+        fileParts.push(filePart);
       }
-      const contentBuffer = Buffer.concat(contentChunks);
-      if (contentBuffer.byteLength > this.maxFileSizeBytes) {
+      const fileBuffer = Buffer.concat(fileParts);
+      if (fileBuffer.byteLength > this.maxFileSizeBytes) {
         throw new RangeError(
           `The file exceeds the ${this.maxFileSizeBytes} byte limit.`,
         );
@@ -316,12 +316,12 @@ export class FileSystemConnector implements DocumentConnector {
       }
 
       return {
-        contentFormat:
+        textFormat:
           extname(filePath).toLowerCase() === ".md"
             ? "markdown"
             : "plain_text",
         externalId,
-        contents: contentBuffer.toString("utf8"),
+        text: fileBuffer.toString("utf8"),
         externalUpdatedAt: finalFileStatus.mtime,
       };
     } finally {

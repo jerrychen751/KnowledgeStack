@@ -1,41 +1,41 @@
 import { Injectable } from "@nestjs/common";
 
-import { DocumentSourceProvider } from "../generated/prisma/enums.js";
+import { SourceProvider } from "../generated/prisma/enums.js";
 
 import {
   ConfluenceConnector,
   type ConfluenceConnectorOptions,
-} from "./connector.confluence.js";
+} from "./confluence.connector.js";
 import type { DocumentConnector } from "./connector.types.js";
 import {
-  FileSystemConnector,
-  type FileSystemConnectorOptions,
-} from "./connector.filesystem.js";
+  FilesystemConnector,
+  type FilesystemConnectorOptions,
+} from "./filesystem.connector.js";
 import {
   NotionConnector,
   type NotionConnectorOptions,
-} from "./connector.notion.js";
+} from "./notion.connector.js";
 
 type ConnectorOptions =
   | (ConfluenceConnectorOptions & {
-      provider: typeof DocumentSourceProvider.confluence;
+      provider: typeof SourceProvider.confluence;
     })
-  | (FileSystemConnectorOptions & {
-      provider: typeof DocumentSourceProvider.filesystem;
+  | (FilesystemConnectorOptions & {
+      provider: typeof SourceProvider.filesystem;
     })
   | (NotionConnectorOptions & {
-      provider: typeof DocumentSourceProvider.notion;
+      provider: typeof SourceProvider.notion;
     });
 
 @Injectable()
 export class ConnectorFactory {
   createConnector(options: ConnectorOptions): DocumentConnector {
     switch (options.provider) {
-      case DocumentSourceProvider.confluence:
+      case SourceProvider.confluence:
         return new ConfluenceConnector(options);
-      case DocumentSourceProvider.filesystem:
-        return new FileSystemConnector(options);
-      case DocumentSourceProvider.notion:
+      case SourceProvider.filesystem:
+        return new FilesystemConnector(options);
+      case SourceProvider.notion:
         return new NotionConnector(options);
     }
   }

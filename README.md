@@ -1,54 +1,122 @@
 Tools & Technologies Used:
 
-*   Frontend: React, Next.js
-*   Backend: Node, Express, Nest.js
-*   RAG Agent with Text-to-SQL capabilities, exposed via MCP server or web interface
+- Frontend: React, Next.js
+- Backend: Node, Express, Nest.js
+- RAG Agent with Text-to-SQL capabilities, which an MCP server or a web interface exposes
 
 Motivation:
 
-*   At companies, knowledge is often siloed within teams, scattered across design docs and scratch workspaces within teams. This project explores a unified RAG agent that tackles this problem.
-*   The core features include retrieval augmented generation with citations, database + documentation connectors, and Text-to-SQL capabilities for analysts to obtain answers to their queries quickly.
+- At companies, each team keeps its knowledge in its own design docs and scratch workspaces. This project builds one RAG agent that reads all of them.
+- The core features include retrieval augmented generation with citations, database + documentation connectors, and Text-to-SQL capabilities for analysts to obtain answers to their queries quickly.
 
-Project Scope:
+Browser sends /api/... requests to the web server on port 3000. The web server forwards it to the backend API server on port 3001.
 
-*   We initially point at seed data which can be automatically regenerated from `seed-data/`.
+Getting Started with Local Development:
+
+1. Install package dependencies.
+```
+cd /Users/jerry/coding/KnowledgeStack
+pnpm install --frozen-lockfile
+```
+
+2. Start up the app databases with Docker. There is one main application database and another for a mock tenant (business database). They occupy ports 5432 and 5433 respectively.
+```
+pnpm dev:db
+```
+
+3. Generate the Prisma client and apply any pending migrations to the SQL.
+```
+pnpm prisma:generate
+pnpm prisma:migrate:deploy
+```
+
+4. Start the API and the web app. These run locally on your own computer's network namespace (not in Docker) and occupy ports 3001 and 3000 respectively. If using Docker fully, uses the command `pnpm dev:full` which places these processes in Docker containers in addition to the databases (same ports).
+```
+pnpm dev
+```
+
+External Dependencies:
+- Google OAuth
+- Notion, Confluence
 
 Notes / Clarifications:
 
-*   We use API, not MCP server, to obtain information from sites/services we connect to. For example, when retrieving documentation from Notion / Confluence, we use their API. Our agent does not use their MCP servers.
-*   We write core tools that our web UI chatbot uses. And then write an adapter (wrapper for MCP SDK) so any AI client can call them.
-*   We have one internal Postgres DB where we store vector indices for documents and chat history. Then N number of read-only connections to other databases holding business data that we perform SQL queries on.
+- We use an API, not an MCP server, to obtain information from the sites and the services we connect to. For example, when we read documentation from Notion or Confluence, we use their API. Our agent does not use their MCP servers.
+- We write the core tools that our web UI chatbot uses. Then we write an adapter, a wrapper for the MCP SDK, so that any AI client can call them.
+- We have one internal Postgres DB where we store the vector indices for documents and the chat history. Then we open N read-only connections to the other databases that hold the business data we query.
 
 User Story:
 
-A user will register and obtain a workspace where they can connect their databases and authenticate against external documentation sources such as Notion and Confluence through OAuth.
+A user registers and obtains a workspace. In that workspace the user connects databases and authenticates against external documentation sources, such as Notion and Confluence, through OAuth.
 
-*   tenant system, where 1 or more users can connect 1 or more databases which our agent can execute safe queries against
-*   smallest / simplest version is tenant name "SEED" where we use seed-data/ to generate starter data (a few tables for a single database)
-*   queries are "safe" in that we wrap each agent query in a read-only transaction, with a user-configurable limit on rows for querying
-*   for agent to know which database to use, give it a tool that looks at database\_connections table for a specific tenant and lists out table w/ description of table etc
-*   authentication for web app + MCP server (oauth)
+- workspace system, where 1 or more users can connect 1 or more databases which our agent can execute safe queries against
+- the smallest version is the workspace named "SEED", where we use seed-data/ to generate the starter data (a few tables for a single database)
+- a query is "safe" because we wrap each agent query in a read-only transaction, with a user-configurable row limit
+- give the agent a tool that reads the db\_connections table of one workspace. The tool lists each table with the description of that table.
+- OAuth authentication for the web app and the MCP server
+
+### Vocabulary
+
+One thing carries one name, from the Postgres column to the button label.
+
+| Term | Means | Never |
+|---|---|---|
+| workspace | The container that owns sources, documents and members. `workspaces`, `workspace_memberships`, `workspace_id`. | tenant |
+| source | One connected system a workspace reads. `sources`, `documents.source_id`, `SourceProvider`. | document source |
+| chunk | One embedded piece of a document. `document_chunks`, `chunk_index`. | passage |
+| sync | The source-level pass that lists, embeds and deletes. `POST /sources/:sourceId/sync`, `last_synced_at`. | index, re-index |
+| index | Writing the chunks of one document. `last_indexed_at`, `reindexDocument`. | sync |
+| citation | A retrieved chunk shown beside the answer. | evidence |
+| document | A page or a file of a source. The search tool is `search_documents`. | doc |
+| tenant | The demo company database alone: the `tenant-db` container, `TENANT_POSTGRES_*` and `seed-data/tenant_company/`. | a workspace |
+
+A per-provider file is named `<provider>.<role>.ts`, such as `notion.connector.ts` and `notion.oauth.ts`. A file shared by every provider is named `connector.<role>.ts`.
 
 ### Database Design
 
 ##### Internal Application Database
 
-###### tenants
+###### workspaces
 
-*   id
-*   name
-*   ...
+- id
+- name
+- join\_code (the code a member gives to a new person)
+- ...
+
+###### users
+
+- id
+- external\_id (the Google `sub` claim, which never changes)
+- external\_email
+- external\_display\_name
+- external\_image\_url
+- ...
+
+###### workspace\_memberships
+
+- workspace\_id
+- user\_id
+- created\_at
+
+###### user\_sessions
+
+- id
+- token\_hash (SHA-256 of the cookie value; the plaintext token never reaches Postgres)
+- active\_workspace\_id (the workspace this browser reads)
+- expires\_at
+- user\_id
 
 ###### db\_connections
 
-*   tenant\_id
-*   database (one of a few possibilities, 'postgres', 'mysql')
-*   host
-*   port
-*   username
-*   enc\_password
-*   created\_at
-*   ...
+- workspace\_id
+- dialect (one of a few possibilities, 'postgres', 'mysql')
+- database
+- host
+- port
+- username
+- encrypted\_password
+- created\_at
+- ...
 
 ## Local development
 
@@ -65,13 +133,15 @@ Copy each template only when its target file does not exist:
 ```
 test -e .env || cp .env.example .env
 test -e apps/api/.env || cp apps/api/.env.example apps/api/.env
-test -e apps/web/.env.local || cp apps/web/.env.example apps/web/.env.local
+test -e apps/web/.env || cp apps/web/.env.example apps/web/.env
 ```
 
 Fill the six root database values and both API database URLs.  
-The API uses host `127.0.0.1` and port `3001` when those values stay blank.  
+The API uses the host `127.0.0.1` and the port `3001` when those values stay blank.  
 Set `API_INTERNAL_URL` to `http://127.0.0.1:3001` for the native path.  
-Set `OPENAI_API_KEY` before the API calls OpenAI.
+Set `OPENAI_API_KEY` before the API calls OpenAI.  
+Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` before anyone signs in. Create an OAuth 2.0 client of type Web application at <https://console.cloud.google.com/apis/credentials>. Register `http://127.0.0.1:3001/auth/google/callback` as an authorized redirect URI on that client.  
+Open the web app at `http://127.0.0.1:3000`, not at `localhost:3000`. The API sets the session cookie for the host `127.0.0.1`, and a browser sends a cookie to one host name only.
 
 Move any current `DB_POOL_URL`, `DB_DIRECT_URL`, and `OPENAI_API_KEY` values from the root file into `apps/api/.env`.
 
@@ -102,6 +172,22 @@ Stop the services and keep the database data:
 pnpm docker:down
 ```
 
+## Demo flow
+
+Every page needs a Google account. `/signin` sends the browser to Google, and the callback opens a session cookie that lasts 30 days.
+
+`/workspaces` picks the workspace the browser reads. Create one, or type the eight-character code a member gave you. A workspace holds its own sources, documents and chunks, and a question reads the open workspace and no other. The seeded demo workspace keeps its documents, and `SELECT name, join_code FROM workspaces;` reads the code that joins it.
+
+`/sources` adds documents. Drag the files in `seed-data/wiki/` onto the page. The API writes them into `UPLOAD_ROOT`, which defaults to `apps/api/.uploads`, then cuts each file into chunks, embeds every chunk, and stores the vectors in `document_chunks`. The page lists each document with its chunk count. `Sync` runs the pass again, and it deletes the rows of a file that no longer exists.
+
+Each workspace indexes its own upload directory, `UPLOAD_ROOT/<workspace id>`, so a file of one workspace never reaches the answers of another.
+
+The Notion card stays disabled until `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` and `NOTION_REDIRECT_URI` hold values. Register `http://127.0.0.1:3001/sources/oauth/callback` as the redirect URI on the integration. The Confluence card stays disabled because a Confluence source reads one space and no space picker exists yet.
+
+`/` asks a question. The chat model reaches the index through one tool, `search_documents`, which embeds the question and ranks every chunk of the workspace by cosine distance. The answer marks each chunk it used as `[n]`, and the citations rail beside it shows that chunk, its heading path and its cosine similarity. A click on `[n]` opens the chunk the sentence came from.
+
+The menu under the question box picks the model that writes the answer. `chat/chat.service.ts` holds the three choices, and the first one, `gpt-5.6-luna`, answers a request that names no model.
+
 sync/
 - connector.resolver.ts
 - sync.service.ts
@@ -119,7 +205,7 @@ tools/
 - tools.types.ts
 - tools.registry.ts
 - xxx.tool.ts
-agent/ - The "harness" loop
+agent/ - The loop that calls the model and the tools
 mcp/
 - Protocol endpoint; takes in via stdio or streamable HTTP
 
@@ -127,11 +213,11 @@ Write to app-db: connectors/ -> ingest -> app-db
 Read from app-db: agent/ or mcp/ -> tools/ -> app-db, tenant-db
 
 Vision:
-- Users, such as companies, are able to authenticate documentation, such as Notion or Confluence, through OAuth. Next, we are able to incrementally process and kind of checkpoint. Or, well, either we process them as a patch on a schedule, or we try to only give incremental updates based on content from these connected services, such as Notion and Confluence.
-- As we process these documents, we primarily want to store vector embeddings in our vector database. And I don't think we want to store the whole document ourselves. We want to make it so that once we have a query, we can find a list of the most relevant documents and files, and then point the agent to go explore again and read that file in its entirety by connecting to Notion or Confluence. Instead of storing the whole thing in our database, we basically want to almost have an index so that the agent can search and read the full document if it needs to, instead of reading it and storing it up front in our own database.
-- The other part, which is the text-to-SQL agent portion, should be able to read the schemas of databases that it's connected to, as well as pull any relevant documentation if it finds it from the vector store, and use those together to generate SQL queries depending on the user's prompt. It should be able to provide an outline of the SQL query in an editable mode as a preview, and then be able to execute upon a click.
+- A user, such as a company, authenticates a documentation source, such as Notion or Confluence, through OAuth. We then process the documents on a schedule, and each pass reads only the content that changed.
+- We store only the vector embeddings of a document, not the document itself. A query ranks the embeddings and returns the most relevant documents. The agent then opens Notion or Confluence and reads the full document when it needs the full text.
+- The text-to-SQL agent reads the schemas of the connected databases. It also reads the related documentation from the vector store. It writes a SQL query from the schemas, the documentation and the prompt of the user. The web UI shows that query in an editable preview, and one click runs it.
 
-Details to Sort Out:
-- Where do we take in documentation? How to build the RAG agent? How to we create an index store?
-- How to periodically sync vector index database? Maybe self-cleaning? Like if we search for something and it's not found remove from database? Or if it's found but text is different update. And then periodic add new ones.
-- How to build agent "harness" loop using openai api?
+Open questions:
+- Where do we read the documentation from? How do we build the RAG agent? How do we create the index store?
+- How do we sync the vector index database on a schedule? A pass deletes the row of a document the search no longer finds, updates the row of a document whose text changed, and adds a row for each new document.
+- How do we build the agent loop with the OpenAI API?

@@ -13,9 +13,9 @@ export type DocumentRef = {
 export type DocumentBody = {
   externalId: string;
   externalUpdatedAt: Date;
-  contentFormat: "markdown" | "plain_text";
+  textFormat: "markdown" | "plain_text";
   // Sanitize provider-controlled text before an HTML renderer uses it.
-  contents: string;
+  text: string;
 };
 
 export type ListDocumentsOptions = {

@@ -1,0 +1,143 @@
+/*
+ * Design tokens and base styles.
+ *
+ * The palette is a cool drafting-paper ground with one signal colour, a deep verdigris, reserved for the
+ * citation apparatus and for interactive state. Corners are machined at 2px, and elevation is a hairline
+ * rule rather than a shadow, so the page reads as an instrument and not as a document.
+ */
+
+:root {
+  --paper: #e9edeb;
+  --surface: #fbfcfc;
+  --surface-sunken: #f1f4f3;
+  --ink: #15181b;
+  --ink-soft: #4b5560;
+  /* The lightest text tone the page ground allows: any lighter value drops below 4.5:1 on --paper. */
+  --ink-faint: #5f6a73;
+  --rule: #d4dad8;
+  /* Every control boundary uses this value, so it holds 3:1 against both --paper and --surface. */
+  --rule-strong: #7c8884;
+  --signal: #0d5a4e;
+  --signal-hover: #0a453c;
+  --signal-wash: #dfeae7;
+  --warn: #8a4b12;
+
+  --radius: 2px;
+  --rail-width: 25rem;
+  --shell-width: 78rem;
+
+  --label: 500 0.6875rem/1 var(--font-mono), ui-monospace, monospace;
+  --label-tracking: 0.09em;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol {
+  margin: 0;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+a {
+  color: var(--signal);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+
+.label {
+  font: var(--label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.875rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  border-color: var(--ink-faint);
+}
+
+.button:disabled {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.button--primary {
+  border-color: var(--signal);
+  background: var(--signal);
+  color: #f4f8f7;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--signal-hover);
+  border-color: var(--signal-hover);
+}
+
+.button--primary:disabled {
+  background: var(--rule);
+  border-color: var(--rule);
+  color: var(--ink-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

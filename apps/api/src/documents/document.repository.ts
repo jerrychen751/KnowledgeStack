@@ -15,13 +15,13 @@ export class DocumentRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findDocumentByExternalId(
-    documentSourceId: string,
+    sourceId: string,
     externalId: string,
   ) {
     return this.prisma.document.findUnique({
       where: {
-        documentSourceId_externalId: {
-          documentSourceId,
+        sourceId_externalId: {
+          sourceId,
           externalId,
         },
       },
@@ -30,7 +30,7 @@ export class DocumentRepository {
 
   async upsertObservedDocument(
     document: DocumentRef,
-    documentSourceId: string,
+    sourceId: string,
     lastSeenAt: Date,
   ): Promise<{ id: string; lastIndexedAt: Date | null }> {
     const sourceMetadata = {
@@ -45,13 +45,13 @@ export class DocumentRepository {
 
     return this.prisma.document.upsert({
       where: {
-        documentSourceId_externalId: {
-          documentSourceId,
+        sourceId_externalId: {
+          sourceId,
           externalId: document.externalId,
         },
       },
       create: {
-        documentSourceId,
+        sourceId,
         externalId: document.externalId,
         ...sourceMetadata,
       },
@@ -72,9 +72,9 @@ export class DocumentRepository {
     chunks: readonly DocumentChunkValues[],
     indexedAt: Date,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      await tx.documentChunk.deleteMany({ where: { documentId } });
-      await tx.documentChunk.createMany({
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.documentChunk.deleteMany({ where: { documentId } });
+      await transaction.documentChunk.createMany({
         data: chunks.map((chunk, chunkIndex) => ({
           documentId,
           chunkIndex,
@@ -86,7 +86,7 @@ export class DocumentRepository {
 
       // Prisma Client cannot write the Unsupported vector column, so the vectors need raw SQL.
       // pgvector parses the text form of a vector, such as '[0.031,-0.017,...]' for 1536 values.
-      await tx.$executeRaw`
+      await transaction.$executeRaw`
         UPDATE document_chunks AS c
         SET embedding = v.embedding::vector
         FROM unnest(
@@ -96,7 +96,7 @@ export class DocumentRepository {
         WHERE c.document_id = ${documentId} AND c.chunk_index = v.chunk_index
       `;
 
-      await tx.document.update({
+      await transaction.document.update({
         where: { id: documentId },
         data: { lastIndexedAt: indexedAt },
       });
@@ -105,12 +105,12 @@ export class DocumentRepository {
 
   /** Read the documents of one source that the pass starting at syncStartedAt did not list. */
   async listStaleDocuments(
-    documentSourceId: string,
+    sourceId: string,
     syncStartedAt: Date,
   ): Promise<{ id: string; externalId: string }[]> {
     return this.prisma.document.findMany({
       where: {
-        documentSourceId,
+        sourceId,
         lastSeenAt: { lt: syncStartedAt },
       },
       select: {

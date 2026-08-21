@@ -1,9 +1,9 @@
-import { DocumentSourceProvider } from "../generated/prisma/enums.js";
+import { SourceProvider } from "../generated/prisma/enums.js";
 
 // The providers that authenticate through OAuth. The filesystem connector reads a local path and holds no credential.
 export type OAuthProviderName =
-  | typeof DocumentSourceProvider.confluence
-  | typeof DocumentSourceProvider.notion;
+  | typeof SourceProvider.confluence
+  | typeof SourceProvider.notion;
 
 /** The token values that a provider returns. expiresAt stays null when the provider returns no expiry time. */
 export type OAuthTokens = {
@@ -50,11 +50,11 @@ export interface RefreshableOAuthClient extends OAuthClient {
 }
 
 export function isOAuthProvider(
-  provider: DocumentSourceProvider,
+  provider: SourceProvider,
 ): provider is OAuthProviderName {
   return (
-    provider === DocumentSourceProvider.confluence ||
-    provider === DocumentSourceProvider.notion
+    provider === SourceProvider.confluence ||
+    provider === SourceProvider.notion
   );
 }
 

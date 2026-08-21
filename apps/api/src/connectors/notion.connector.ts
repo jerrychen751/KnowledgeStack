@@ -410,9 +410,9 @@ export class NotionConnector implements DocumentConnector {
     );
 
     return {
-      contentFormat: "markdown",
+      textFormat: "markdown",
       externalId: page.id,
-      contents: contents.join("\n\n"),
+      text: contents.join("\n\n"),
       externalUpdatedAt: new Date(page.last_edited_time),
     };
   }

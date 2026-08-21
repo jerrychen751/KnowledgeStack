@@ -1,7 +1,7 @@
 /**
- * This module handles communication with document source providers (Notion, Confluence, filesystem uploads).
+ * This module handles communication with source providers (Notion, Confluence, filesystem uploads).
  *
- * This module constructs connectors from a complete set of connector options (which varies depending on the document source provider). It purely contains logic to interact with the document source providers; options are resolved through the database, which is handled by connector resolver in sync service.
+ * This module constructs connectors from a complete set of connector options (which varies depending on the source provider). It purely contains logic to interact with the source providers; options are resolved through the database, which is handled by connector resolver in sync service.
  */
 
 import { Module } from "@nestjs/common";
