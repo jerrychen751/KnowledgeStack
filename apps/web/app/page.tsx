@@ -354,8 +354,9 @@ export default function AskPage(): ReactNode {
                   <ul className={styles.indexedList}>
                     {indexedSources.map((source) => (
                       <li key={source.id} className={styles.indexedItem}>
-                        {source.externalDisplayName} · {source.documentCount} documents ·{" "}
-                        {source.chunkCount} chunks
+                        {source.externalDisplayName} · {source.documentCount}{" "}
+                        {source.documentCount === 1 ? "document" : "documents"} · {source.chunkCount}{" "}
+                        {source.chunkCount === 1 ? "chunk" : "chunks"}
                       </li>
                     ))}
                   </ul>

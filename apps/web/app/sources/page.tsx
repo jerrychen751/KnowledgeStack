@@ -228,10 +228,12 @@ export default function SourcesPage(): ReactNode {
                   <h2 className={styles.cardName}>{source.externalDisplayName}</h2>
                   <p className={styles.cardStats}>
                     <span className={styles.cardStat}>
-                      <b>{source.documentCount}</b> documents
+                      <b>{source.documentCount}</b>{" "}
+                      {source.documentCount === 1 ? "document" : "documents"}
                     </span>
                     <span className={styles.cardStat}>
-                      <b>{source.chunkCount}</b> chunks
+                      <b>{source.chunkCount}</b>{" "}
+                      {source.chunkCount === 1 ? "chunk" : "chunks"}
                     </span>
                     <span className={styles.cardStat}>synced {formatTime(source.lastSyncedAt)}</span>
                   </p>
@@ -307,7 +309,7 @@ export default function SourcesPage(): ReactNode {
                       >
                         {document.documentType === "attachment"
                           ? "not text"
-                          : `${document._count.chunks} chunks`}
+                          : `${document._count.chunks} ${document._count.chunks === 1 ? "chunk" : "chunks"}`}
                       </span>
                       <span className={`${styles.documentMeta} ${styles.documentTime}`}>
                         {formatTime(document.lastIndexedAt)}
