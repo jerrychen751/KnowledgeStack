@@ -3,16 +3,16 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-import type { AuthorizationUrlResponse } from "@knowledgestack/shared/auth";
 import type { ErrorResponse } from "@knowledgestack/shared/http";
 import type {
-  ConnectorStatusResponse,
-  SourceProvider,
+  ListDocumentsResponse,
+  ListSourcesResponse,
+  ReadConnectorStatusResponse,
+  SaveUploadsRequest,
   Source,
   SourceDocument,
-  SourceDocumentListResponse,
-  SourceListResponse,
-  UploadRequest,
+  SourceProvider,
+  StartAuthorizationResponse,
 } from "@knowledgestack/shared/sources";
 
 import styles from "./sources.module.css";
@@ -42,7 +42,7 @@ export default function SourcesPage(): ReactNode {
   // const [state, stateSetter] = useState<T>(initialValue);
   const [sources, setSources] = useState<Source[]>([]);
   const [documentsBySourceId, setDocumentsBySourceId] = useState<Record<string, SourceDocument[]>>({});
-  const [connectors, setConnectors] = useState<ConnectorStatusResponse | null>(null);
+  const [connectors, setConnectors] = useState<ReadConnectorStatusResponse | null>(null);
   const [notice, setNotice] = useState<{ text: string; failed: boolean } | null>(null);
   const [busyMessage, setBusyMessage] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
@@ -60,13 +60,13 @@ export default function SourcesPage(): ReactNode {
       return;
     }
 
-    const body = (await response.json()) as SourceListResponse;
+    const body = (await response.json()) as ListSourcesResponse;
     setSources(body.sources);
 
     const documents = await Promise.all(
       body.sources.map(async (source) => {
         const documentResponse = await fetch(`/api/sources/${source.id}/documents`);
-        const documentBody = (await documentResponse.json()) as SourceDocumentListResponse;
+        const documentBody = (await documentResponse.json()) as ListDocumentsResponse;
         return [source.id, documentBody.documents] as const;
       }),
     );
@@ -77,7 +77,7 @@ export default function SourcesPage(): ReactNode {
     void loadSources();
     fetch("/api/sources/connectors")
       .then((response) => (response.ok ? response.json() : null))
-      .then((body: ConnectorStatusResponse | null) => setConnectors(body))
+      .then((body: ReadConnectorStatusResponse | null) => setConnectors(body))
       .catch(() => setConnectors(null));
 
     const parameters = new URLSearchParams(window.location.search);
@@ -129,7 +129,7 @@ export default function SourcesPage(): ReactNode {
           fetch("/api/sources/uploads", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ files: payload } satisfies UploadRequest),
+            body: JSON.stringify({ files: payload } satisfies SaveUploadsRequest),
           }),
       );
     },
@@ -138,7 +138,7 @@ export default function SourcesPage(): ReactNode {
 
   const connectProvider = useCallback(async (provider: SourceProvider) => {
     const response = await fetch(`/api/sources/connect/${provider}`);
-    const body = (await response.json()) as Partial<AuthorizationUrlResponse & ErrorResponse>;
+    const body = (await response.json()) as Partial<StartAuthorizationResponse & ErrorResponse>;
     if (body.authorizeUrl === undefined) {
       setNotice({ text: body.message ?? "The provider is not configured.", failed: true });
       return;

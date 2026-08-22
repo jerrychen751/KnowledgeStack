@@ -1,5 +1,7 @@
 /** The wire shapes of the /sources routes, which connect a provider, upload files, and report what is indexed. */
 
+import type { StartSignInResponse } from "./auth.js";
+
 /** The system a source reads. `filesystem` reads the upload directory of one workspace. */
 export type SourceProvider = "confluence" | "filesystem" | "notion";
 
@@ -22,7 +24,7 @@ export type Source = {
 };
 
 /** The body `GET /sources` answers with, oldest source first. */
-export type SourceListResponse = {
+export type ListSourcesResponse = {
   sources: Source[];
 };
 
@@ -38,12 +40,12 @@ export type SourceDocument = {
 };
 
 /** The body `GET /sources/:sourceId/documents` answers with, by title. */
-export type SourceDocumentListResponse = {
+export type ListDocumentsResponse = {
   documents: SourceDocument[];
 };
 
 /** The body `GET /sources/connectors` answers with. `fileExtensions` lists the extensions an upload may carry, such as ".md". `detail` names the reason a provider cannot connect, and is null when it can. */
-export type ConnectorStatusResponse = {
+export type ReadConnectorStatusResponse = {
   uploads: {
     directory: string;
     fileExtensions: string[];
@@ -55,6 +57,9 @@ export type ConnectorStatusResponse = {
   }[];
 };
 
+/** The body `GET /sources/connect/:provider` answers with. It carries the field of `StartSignInResponse`, because both routes send the browser to a provider for a grant. */
+export type StartAuthorizationResponse = StartSignInResponse;
+
 /** One file of an upload request. `text` holds the whole file, of 1 through 1000000 characters. */
 export type UploadedFile = {
   name: string;
@@ -62,11 +67,11 @@ export type UploadedFile = {
 };
 
 /** The body `POST /sources/uploads` reads. It holds 1 through 20 files. */
-export type UploadRequest = {
+export type SaveUploadsRequest = {
   files: UploadedFile[];
 };
 
 /** The body `POST /sources/uploads` answers with, after the whole sync pass finishes, so the caller can read the new counts at once. */
-export type UploadResponse = {
+export type SaveUploadsResponse = {
   sourceId: string;
 };

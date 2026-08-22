@@ -5,10 +5,10 @@ import { basename, extname, join, resolve } from "node:path";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 
 import type {
-  ConnectorStatusResponse,
+  ReadConnectorStatusResponse,
+  SaveUploadsResponse,
   Source,
   SourceDocument,
-  UploadResponse,
   UploadedFile,
 } from "@knowledgestack/shared/sources";
 
@@ -91,7 +91,7 @@ export class SourcesService {
    * A provider is configured when its client id, client secret and redirect URI are all present. The
    * detail of an unconfigured provider names the variables to set.
    */
-  readConnectorStatus(workspaceId: string): ConnectorStatusResponse {
+  readConnectorStatus(workspaceId: string): ReadConnectorStatusResponse {
     const providers = [
       SourceProvider.notion,
       SourceProvider.confluence,
@@ -135,7 +135,7 @@ export class SourcesService {
   async saveUploads(
     workspaceId: string,
     files: readonly UploadedFile[],
-  ): Promise<UploadResponse> {
+  ): Promise<SaveUploadsResponse> {
     const uploadDirectory = this.readUploadDirectory(workspaceId);
     const fileNames = files.map((file) => {
       const fileName = basename(file.name.trim());

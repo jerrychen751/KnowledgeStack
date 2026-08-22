@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type {
-  ChatModelListResponse,
-  ChatRequest,
   ChatStreamEvent,
   Citation,
   ContextUsage,
+  ListModelsResponse,
+  StreamAnswerRequest,
 } from "@knowledgestack/shared/chat";
 import type { ErrorResponse } from "@knowledgestack/shared/http";
-import type { Source, SourceListResponse } from "@knowledgestack/shared/sources";
+import type { ListSourcesResponse, Source } from "@knowledgestack/shared/sources";
 
 import styles from "./ask.module.css";
 
@@ -140,12 +140,12 @@ export default function AskPage(): ReactNode {
   useEffect(() => {
     fetch("/api/sources")
       .then((response) => (response.ok ? response.json() : { sources: [] }))
-      .then((body: SourceListResponse) => setSources(body.sources))
+      .then((body: ListSourcesResponse) => setSources(body.sources))
       .catch(() => setSources([]));
 
     fetch("/api/chat/models")
       .then((response) => response.json())
-      .then((body: ChatModelListResponse) => {
+      .then((body: ListModelsResponse) => {
         setModels(body.models);
         setModelId(body.defaultModelId);
       })
@@ -220,7 +220,7 @@ export default function AskPage(): ReactNode {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages, model: modelId, summary } satisfies ChatRequest),
+          body: JSON.stringify({ messages, model: modelId, summary } satisfies StreamAnswerRequest),
         });
         if (response.status === 403) {
           window.location.assign("/workspaces");

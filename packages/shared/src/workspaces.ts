@@ -11,7 +11,7 @@ export type Workspace = {
 };
 
 /** The body `GET /workspaces` answers with, oldest membership first. `activeWorkspaceId` names the workspace this browser reads, and is null until the person creates or joins one. */
-export type WorkspaceListResponse = {
+export type ListWorkspacesResponse = {
   workspaces: Workspace[];
   activeWorkspaceId: string | null;
 };
@@ -26,11 +26,14 @@ export type JoinWorkspaceRequest = {
   code: string;
 };
 
-/** The body `POST /workspaces` and `POST /workspaces/join` answer with, after they open the workspace in this browser. It carries no member or source count, because the caller reloads the list. */
-export type WorkspaceResponse = {
+/** The body `POST /workspaces` answers with, after it opens the new workspace in this browser. It carries no member or source count, because the caller reloads the list. */
+export type CreateWorkspaceResponse = {
   workspace: {
     id: string;
     joinCode: string;
     name: string;
   };
 };
+
+/** The body `POST /workspaces/join` answers with, after it opens the workspace in this browser. It carries the fields of `CreateWorkspaceResponse`, because both routes answer with the workspace they opened. */
+export type JoinWorkspaceResponse = CreateWorkspaceResponse;

@@ -7,8 +7,8 @@ import type { ErrorResponse } from "@knowledgestack/shared/http";
 import type {
   CreateWorkspaceRequest,
   JoinWorkspaceRequest,
+  ListWorkspacesResponse,
   Workspace,
-  WorkspaceListResponse,
 } from "@knowledgestack/shared/workspaces";
 
 import { workspaceChangedEvent } from "../account-menu";
@@ -30,7 +30,7 @@ export default function WorkspacesPage(): ReactNode {
       return;
     }
 
-    const body = (await response.json()) as WorkspaceListResponse;
+    const body = (await response.json()) as ListWorkspacesResponse;
     setWorkspaces(body.workspaces);
     setActiveWorkspaceId(body.activeWorkspaceId);
   }, []);

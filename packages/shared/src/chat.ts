@@ -9,13 +9,13 @@ export type ChatMessage = {
 };
 
 /** The body `GET /chat/models` answers with, cheapest model first. Each entry is a model id, such as "gpt-5.6-luna", and the browser shows it as written. `defaultModelId` names the model that answers a request without a `model` field. */
-export type ChatModelListResponse = {
+export type ListModelsResponse = {
   models: readonly string[];
   defaultModelId: string;
 };
 
 /** The body `POST /chat` reads. It holds one or more messages, and the last one is the question. `summary` carries the notes that a `compaction` frame of an earlier answer summarized the oldest turns into; send it back unchanged with every later question, or the compacted turns are lost. */
-export type ChatRequest = {
+export type StreamAnswerRequest = {
   messages: ChatMessage[];
   model?: string;
   summary?: string;

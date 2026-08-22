@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 
-import type { SessionResponse } from "@knowledgestack/shared/auth";
+import type { FindAccountResponse } from "@knowledgestack/shared/auth";
 
 import { PrismaService } from "../database/prisma.service.js";
 
@@ -76,7 +76,7 @@ export class AuthService {
   }
 
   /** Return the signed-in account and the workspace the browser reads, which the web app shows in the header. */
-  async findAccount(session: RequestSession): Promise<SessionResponse> {
+  async findAccount(session: RequestSession): Promise<FindAccountResponse> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: session.userId },
       select: {

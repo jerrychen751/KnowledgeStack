@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { AuthorizationUrlResponse } from "@knowledgestack/shared/auth";
+import type { StartSignInResponse } from "@knowledgestack/shared/auth";
 import type { ErrorResponse } from "@knowledgestack/shared/http";
 
 import styles from "./signin.module.css";
@@ -25,7 +25,7 @@ export default function SignInPage(): ReactNode {
     try {
       const response = await fetch("/api/auth/google");
       const body = (await response.json()) as Partial<
-        AuthorizationUrlResponse & ErrorResponse
+        StartSignInResponse & ErrorResponse
       >;
       if (!response.ok || body.authorizeUrl === undefined) {
         throw new Error(body.message ?? "The API returned no Google sign-in URL.");

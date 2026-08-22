@@ -10,7 +10,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 
-import type { AuthorizationUrlResponse, SessionResponse } from "@knowledgestack/shared/auth";
+import type { FindAccountResponse, StartSignInResponse } from "@knowledgestack/shared/auth";
 import type { StatusResponse } from "@knowledgestack/shared/http";
 
 import { AppConfig } from "../config/app-config.js";
@@ -82,7 +82,7 @@ export class AuthController {
       ...this.buildCookieOptions(),
       expires: new Date(Date.now() + 10 * 60 * 1000),
     });
-    response.json({ authorizeUrl: signIn.authorizeUrl } satisfies AuthorizationUrlResponse);
+    response.json({ authorizeUrl: signIn.authorizeUrl } satisfies StartSignInResponse);
   }
 
   /**
@@ -146,7 +146,7 @@ export class AuthController {
 
   /** Return the signed-in account. A browser without a live session gets 401 and opens /signin. */
   @Get("session")
-  async findAccount(@CurrentSession() session: RequestSession): Promise<SessionResponse> {
+  async findAccount(@CurrentSession() session: RequestSession): Promise<FindAccountResponse> {
     return this.authService.findAccount(session);
   }
 

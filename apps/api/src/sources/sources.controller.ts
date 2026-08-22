@@ -13,13 +13,13 @@ import {
   Redirect,
 } from "@nestjs/common";
 
-import type { AuthorizationUrlResponse } from "@knowledgestack/shared/auth";
 import type { StatusResponse } from "@knowledgestack/shared/http";
 import type {
-  ConnectorStatusResponse,
-  SourceDocumentListResponse,
-  SourceListResponse,
-  UploadResponse,
+  ListDocumentsResponse,
+  ListSourcesResponse,
+  ReadConnectorStatusResponse,
+  SaveUploadsResponse,
+  StartAuthorizationResponse,
   UploadedFile,
 } from "@knowledgestack/shared/sources";
 
@@ -38,12 +38,12 @@ export class SourcesController {
   ) {}
 
   @Get()
-  async listSources(@ActiveWorkspaceId() workspaceId: string): Promise<SourceListResponse> {
+  async listSources(@ActiveWorkspaceId() workspaceId: string): Promise<ListSourcesResponse> {
     return { sources: await this.sourcesService.listSources(workspaceId) };
   }
 
   @Get("connectors")
-  readConnectorStatus(@ActiveWorkspaceId() workspaceId: string): ConnectorStatusResponse {
+  readConnectorStatus(@ActiveWorkspaceId() workspaceId: string): ReadConnectorStatusResponse {
     return this.sourcesService.readConnectorStatus(workspaceId);
   }
 
@@ -51,7 +51,7 @@ export class SourcesController {
   async listDocuments(
     @Param("sourceId") sourceId: string,
     @ActiveWorkspaceId() workspaceId: string,
-  ): Promise<SourceDocumentListResponse> {
+  ): Promise<ListDocumentsResponse> {
     return {
       documents: await this.sourcesService.listDocuments(workspaceId, sourceId),
     };
@@ -85,7 +85,7 @@ export class SourcesController {
   async saveUploads(
     @Body() body: unknown,
     @ActiveWorkspaceId() workspaceId: string,
-  ): Promise<UploadResponse> {
+  ): Promise<SaveUploadsResponse> {
     const files = this.readUploadedFiles(body);
     try {
       return await this.sourcesService.saveUploads(workspaceId, files);
@@ -156,7 +156,7 @@ export class SourcesController {
   startAuthorization(
     @Param("provider") provider: string,
     @ActiveWorkspaceId() workspaceId: string,
-  ): AuthorizationUrlResponse {
+  ): StartAuthorizationResponse {
     if (!Object.hasOwn(SourceProvider, provider)) {
       throw new BadRequestException(`"${provider}" is not a source provider.`);
     }

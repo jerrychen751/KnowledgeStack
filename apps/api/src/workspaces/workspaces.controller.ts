@@ -10,7 +10,11 @@ import {
 } from "@nestjs/common";
 
 import type { StatusResponse } from "@knowledgestack/shared/http";
-import type { WorkspaceListResponse, WorkspaceResponse } from "@knowledgestack/shared/workspaces";
+import type {
+  CreateWorkspaceResponse,
+  JoinWorkspaceResponse,
+  ListWorkspacesResponse,
+} from "@knowledgestack/shared/workspaces";
 
 import { CurrentSession } from "../auth/session.decorator.js";
 import { SessionService, type RequestSession } from "../auth/session.service.js";
@@ -39,7 +43,7 @@ export class WorkspacesController {
   @Get()
   async listWorkspaces(
     @CurrentSession() session: RequestSession,
-  ): Promise<WorkspaceListResponse> {
+  ): Promise<ListWorkspacesResponse> {
     return {
       workspaces: await this.workspacesService.listWorkspaces(session.userId),
       activeWorkspaceId: session.activeWorkspaceId,
@@ -51,7 +55,7 @@ export class WorkspacesController {
   async createWorkspace(
     @Body() body: unknown,
     @CurrentSession() session: RequestSession,
-  ): Promise<WorkspaceResponse> {
+  ): Promise<CreateWorkspaceResponse> {
     const workspace = await this.workspacesService.createWorkspace(
       session.userId,
       this.readWorkspaceName(body),
@@ -67,7 +71,7 @@ export class WorkspacesController {
   async joinWorkspace(
     @Body() body: unknown,
     @CurrentSession() session: RequestSession,
-  ): Promise<WorkspaceResponse> {
+  ): Promise<JoinWorkspaceResponse> {
     const code = (body as { code?: unknown } | null)?.code;
     if (typeof code !== "string" || code.trim() === "") {
       throw new BadRequestException("code must be a non-empty string.");

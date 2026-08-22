@@ -2,8 +2,8 @@ import { BadRequestException, Body, Controller, Get, Post, Res } from "@nestjs/c
 
 import type {
   ChatMessage,
-  ChatModelListResponse,
   ChatStreamEvent,
+  ListModelsResponse,
 } from "@knowledgestack/shared/chat";
 
 import { ActiveWorkspaceId } from "../auth/session.decorator.js";
@@ -24,7 +24,7 @@ export class ChatController {
 
   /** Report the models a question can run on, and the one the API uses when the request names none. */
   @Get("models")
-  listModels(): ChatModelListResponse {
+  listModels(): ListModelsResponse {
     return {
       models: this.chatService.models,
       defaultModelId: this.chatService.models[0],

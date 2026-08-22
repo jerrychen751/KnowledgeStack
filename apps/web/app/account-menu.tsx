@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { SessionResponse } from "@knowledgestack/shared/auth";
+import type { FindAccountResponse } from "@knowledgestack/shared/auth";
 
 import styles from "./shell.module.css";
 
@@ -12,14 +12,14 @@ import styles from "./shell.module.css";
 export const workspaceChangedEvent = "knowledgestack:workspace-changed";
 
 export function AccountMenu(): ReactNode {
-  const [account, setAccount] = useState<SessionResponse | null>(null);
+  const [account, setAccount] = useState<FindAccountResponse | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
     let isCurrent = true;
     const readAccount = () => {
       fetch("/api/auth/session")
-        .then((response) => (response.ok ? (response.json() as Promise<SessionResponse>) : null))
+        .then((response) => (response.ok ? (response.json() as Promise<FindAccountResponse>) : null))
         .then((body) => {
           if (isCurrent) {
             setAccount(body);
