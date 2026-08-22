@@ -53,6 +53,11 @@ export class ToolRegistry implements OnModuleInit {
     return [...this.toolsByName.keys()];
   }
 
+  /** Whether a method declares this tool. The model can name a tool that no method declares. */
+  hasTool(name: string): boolean {
+    return this.toolsByName.has(name);
+  }
+
   constructor(
     private readonly discoveryService: DiscoveryService,
     private readonly metadataScanner: MetadataScanner,
@@ -62,7 +67,7 @@ export class ToolRegistry implements OnModuleInit {
     // Walk through each method of each provider registered in any active module of the running app to register all tools, which are methods annotated with @Tool decorator
     for (const wrapper of this.discoveryService.getProviders()) {
       const instance = wrapper.instance as Record<string, unknown> | null | undefined;
-      if (instance === null || instance === undefined || typeof instance !== "object") {
+      if (instance === null || typeof instance !== "object") {
         continue;
       }
 
@@ -91,11 +96,22 @@ export class ToolRegistry implements OnModuleInit {
     Logger.log(`Registered tools: ${this.toolNames.join(", ")}`, ToolRegistry.name);
   }
 
-  /** Report the words the browser shows while one call runs. The name must be one the model read from functionTools. */
+  /**
+   * Report the words the browser shows while one call runs. Call hasTool first.
+   *
+   * A buildDetail that throws yields an empty detail. The detail is display text, so a fault in one tool
+   * declaration must not end the answer of a person.
+   */
   describeCall(name: string, args: Record<string, unknown>): { action: string; detail: string } {
     const { definition } = this.readTool(name);
+    let detail = "";
+    try {
+      detail = definition.buildDetail(args);
+    } catch (error) {
+      Logger.warn(`The tool ${name} could not describe its call: ${String(error)}`, ToolRegistry.name);
+    }
 
-    return { action: definition.action, detail: definition.buildDetail(args) };
+    return { action: definition.action, detail };
   }
 
   /** Run one call and return what the model reads back. The name must be one the model read from functionTools. */
