@@ -302,15 +302,6 @@
   cursor: not-allowed;
 }
 
-.hint {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.75rem;
-  color: var(--ink-faint);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .contextRing {
   display: flex;
   flex: none;
@@ -531,11 +522,6 @@
     position: sticky;
     bottom: 0;
     padding: 0.75rem 1.25rem 1rem;
-  }
-
-  /* The keyboard instruction is the first thing to go: a touch keyboard has no Shift and Enter. */
-  .hint {
-    display: none;
   }
 
   .rail {

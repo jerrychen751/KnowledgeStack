@@ -459,7 +459,6 @@ export default function AskPage(): ReactNode {
                 ))}
               </select>
             </label>
-            <p className={styles.hint}>Shift and Enter start a new line.</p>
             {usage === null ? null : <ContextRing usage={usage} />}
           </div>
         </form>
