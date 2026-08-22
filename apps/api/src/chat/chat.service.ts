@@ -1,5 +1,4 @@
 import { Injectable } from "@nestjs/common";
-import "dotenv/config";
 import OpenAI from "openai";
 
 import type {
@@ -7,8 +6,9 @@ import type {
   ChatMessage,
   Citation,
 } from "@knowledgestack/shared/chat";
-
+import { AppConfig } from "../config/app-config.js";
 import { ToolRegistry } from "../tools/tool.registry.js";
+import { CompactionService } from "./compaction.service.js";
 
 @Injectable()
 export class ChatService {
@@ -28,13 +28,50 @@ export class ChatService {
 
   private readonly client: OpenAI;
 
-  constructor(private readonly toolRegistry: ToolRegistry) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error("OPENAI_API_KEY is not set in the environment");
+  constructor(
+    appConfig: AppConfig,
+    private readonly toolRegistry: ToolRegistry,
+    private readonly compactionService: CompactionService,
+  ) {
+    this.client = new OpenAI({ apiKey: appConfig.openaiApiKey, maxRetries: 2 });
+  }
+
+  /**
+   * Read the arguments of one tool call, or the text the model must read when the call cannot run.
+   *
+   * Every fault the model itself can make returns a correction. The caller sends that text back as the
+   * output of the call, and the model chooses again inside the same answer. A correction never ends the
+   * answer, because the model wrote the fault and can write a better call.
+   */
+  private readToolCall(
+    toolCall: OpenAI.Responses.ResponseFunctionToolCall,
+  ): { args: Record<string, unknown> } | { correction: string } {
+    if (!this.toolRegistry.hasTool(toolCall.name)) {
+      return {
+        correction: `No tool is named ${toolCall.name}. Call one of ${this.toolRegistry.toolNames.join(", ")}.`,
+      };
     }
 
-    this.client = new OpenAI({ apiKey, maxRetries: 2 });
+    let parsedArguments: unknown;
+    try {
+      parsedArguments = JSON.parse(toolCall.arguments);
+    } catch {
+      return {
+        correction: `The arguments of ${toolCall.name} are not JSON. Send one JSON object.`,
+      };
+    }
+    // "null", "7" and "[]" all parse, and every tool reads its arguments by name.
+    if (
+      typeof parsedArguments !== "object" ||
+      parsedArguments === null ||
+      Array.isArray(parsedArguments)
+    ) {
+      return {
+        correction: `The arguments of ${toolCall.name} must be one JSON object, such as {"query": "renewal terms"}.`,
+      };
+    }
+
+    return { args: parsedArguments as Record<string, unknown> };
   }
 
   /**
@@ -42,8 +79,12 @@ export class ChatService {
    *
    * The generator yields a tool event before each call, a citations event once the chunks arrive, and
    * a delta event for every piece of answer text. The caller writes each event to the client as it arrives.
-   * The model decides how often to search, up to three rounds; the fourth round would cost more than it
-   * returns on a corpus this size.
+   * The model decides how often to search, and one answer runs at most 50 model calls.
+   *
+   * A conversation that reaches either compaction limit compacts before the answer starts, on the cheapest
+   * model whatever tier the question chose, because the notes are mechanical work. The generator then yields
+   * a compaction event with the notes that summarize the oldest turns, and a context event with the size the
+   * next question starts from. The browser holds the conversation, so it must record both.
    *
    * The call goes to /v1/responses, because /v1/chat/completions rejects a function tool for every GPT-5.6
    * model unless the request turns reasoning off. `store: false` keeps the conversation off the OpenAI
@@ -54,15 +95,51 @@ export class ChatService {
     workspaceId: string,
     messages: readonly ChatMessage[],
     modelId: string,
+    requestSummary: string,
   ): AsyncGenerator<ChatAnswerEvent> {
-    // 
-    const input: OpenAI.Responses.ResponseInputItem[] = messages.map((message) => ({
+    let summary = requestSummary;
+    let conversation = messages;
+    if (this.compactionService.measureUsage(summary, conversation).fraction >= 1) {
+      const compacted = await this.compactionService.compact(summary, conversation, this.models[0]);
+      if (compacted !== null) {
+        summary = compacted.summary;
+        conversation = compacted.messages;
+        yield {
+          type: "compaction",
+          summary,
+          compactedTurnCount: compacted.compactedTurnCount,
+        };
+        yield {
+          type: "context",
+          usage: this.compactionService.measureUsage(summary, conversation),
+        };
+      }
+    }
+
+    // Input contains latest user message with all context from prior turns
+    const input: OpenAI.Responses.ResponseInputItem[] = conversation.map((message) => ({
       role: message.role,
       content: message.content,
     }));
+    if (summary !== "") {
+      input.unshift({
+        role: "developer",
+        content: [
+          "Notes on the earlier turns of this conversation, which a compaction summarized.",
+          "Treat the notes as what you already found. Search again before you state anything new.",
+          "The notes carry no result number. Write only the numbers of the results you search for now.",
+          "",
+          summary,
+        ].join("\n"),
+      });
+    }
     const citationsByChunkId = new Map<string, Citation>();
+    let answerText = "";
+    let isAnswered = false;
 
-    for (let round = 0; round < 3; round += 1) {
+    // Limit to 50 model turns max per user message
+    for (let modelCallCount = 0; modelCallCount < 50; modelCallCount += 1) {
+      // OpenAI returns a response which is a stream of events
       const response = await this.client.responses.create({
         model: modelId,
         include: ["reasoning.encrypted_content"],
@@ -82,9 +159,11 @@ export class ChatService {
         truncation: "auto",
       });
 
+      // Build reply text and tool call list if needed
       const toolCalls: OpenAI.Responses.ResponseFunctionToolCall[] = [];
       for await (const event of response) {
         if (event.type === "response.output_text.delta") {
+          answerText += event.delta;
           yield { type: "delta", text: event.delta };
         } else if (
           event.type === "response.output_item.done" &&
@@ -100,37 +179,31 @@ export class ChatService {
         }
       }
 
+      // At this point if no further tool calls are required client has received text and we can break out of model call loop
       if (toolCalls.length === 0) {
-        return;
+        isAnswered = true;
+        break;
       }
 
+      // TODO: in the future consider adding parallel tool call capabilities
       for (const toolCall of toolCalls) {
-        let args: Record<string, unknown> = {};
-        try {
-          const parsedArguments = JSON.parse(toolCall.arguments) as unknown;
-          // "null", "7" and "[]" all parse, and every tool reads its arguments by name.
-          if (
-            typeof parsedArguments === "object" &&
-            parsedArguments !== null &&
-            !Array.isArray(parsedArguments)
-          ) {
-            args = parsedArguments as Record<string, unknown>;
-          }
-        } catch {
-          args = {};
-        }
-
-        if (!this.toolRegistry.toolNames.includes(toolCall.name)) {
+        const call = this.readToolCall(toolCall);
+        if ("correction" in call) {
+          yield { type: "tool", action: "rejected", detail: toolCall.name };
           input.push({
             type: "function_call_output",
             call_id: toolCall.call_id,
-            output: `No tool is named ${toolCall.name}. Call one of ${this.toolRegistry.toolNames.join(", ")}.`,
+            output: call.correction,
           });
           continue;
         }
 
-        yield { type: "tool", ...this.toolRegistry.describeCall(toolCall.name, args) };
-        const result = await this.toolRegistry.runTool(toolCall.name, workspaceId, args);
+        yield { type: "tool", ...this.toolRegistry.describeCall(toolCall.name, call.args) };
+        const result = await this.toolRegistry.runTool(
+          toolCall.name,
+          workspaceId,
+          call.args,
+        );
         if ("text" in result) {
           input.push({
             type: "function_call_output",
@@ -173,9 +246,18 @@ export class ChatService {
       }
     }
 
+    if (!isAnswered) {
+      const text = `${answerText === "" ? "" : "\n\n"}The search did not settle after 50 model calls. Ask the question with fewer parts.`;
+      answerText += text;
+      yield { type: "delta", text };
+    }
+
     yield {
-      type: "delta",
-      text: "The search did not settle after three rounds. Ask the question with fewer parts.",
+      type: "context",
+      usage: this.compactionService.measureUsage(summary, [
+        ...conversation,
+        { role: "assistant", content: answerText },
+      ]),
     };
   }
 }

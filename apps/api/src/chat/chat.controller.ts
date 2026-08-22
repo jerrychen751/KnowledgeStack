@@ -65,12 +65,27 @@ export class ChatController {
     });
   }
 
+  /** Read the notes a compaction of an earlier answer wrote, or an empty string when the conversation never compacted. */
+  private readSummary(body: unknown): string {
+    const summary = (body as { summary?: unknown } | null)?.summary;
+    if (summary === undefined || summary === null) {
+      return "";
+    }
+    if (typeof summary !== "string") {
+      throw new BadRequestException("summary must be a string.");
+    }
+
+    return summary;
+  }
+
   /**
    * Stream the answer to the last message as Server-Sent Events.
    *
-   * Every frame is one JSON object on a `data:` line. The `type` field is `tool`, `citations` or `delta`
-   * while the answer runs, then `done` on success or `error` on failure. The client must treat a stream that
-   * ends without `done` as a failure, because the headers leave before the first search starts.
+   * Every frame is one JSON object on a `data:` line. The `type` field is `tool`, `citations`, `delta`,
+   * `compaction` or `context` while the answer runs, then `done` on success or `error` on failure. The client
+   * must treat a stream that ends without `done` as a failure, because the headers leave before the first
+   * search starts. A client that discards a `compaction` frame keeps sending the turns the frame summarized,
+   * and the next question compacts them again.
    */
   @Post()
   async streamAnswer(
@@ -80,6 +95,7 @@ export class ChatController {
   ): Promise<void> {
     const messages = this.readChatMessages(body);
     const modelId = this.readModelId(body);
+    const summary = this.readSummary(body);
 
     response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     response.setHeader("Cache-Control", "no-cache, no-transform");
@@ -87,7 +103,7 @@ export class ChatController {
     response.flushHeaders();
 
     try {
-      for await (const event of this.chatService.streamAnswer(workspaceId, messages, modelId)) {
+      for await (const event of this.chatService.streamAnswer(workspaceId, messages, modelId, summary)) {
         response.write(`data: ${JSON.stringify(event)}\n\n`);
       }
       response.write(
