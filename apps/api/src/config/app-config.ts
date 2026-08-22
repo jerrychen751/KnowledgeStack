@@ -9,6 +9,7 @@ export class AppConfig {
   readonly host: string;
   // Sets the minimum Nest log level, such as "warn". Defaults to "verbose".
   readonly logLevel: LogLevel;
+  readonly openaiApiKey: string;
   // Sets the TCP port from 1 through 65535. Defaults to 3001.
   readonly port: number;
   // Sets the maximum JSON body size with a unit, such as "12mb". Defaults to "12mb".
@@ -34,6 +35,12 @@ export class AppConfig {
       );
     }
     this.logLevel = logLevel as LogLevel;
+
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      throw new Error("OPENAI_API_KEY must be set.");
+    }
+    this.openaiApiKey = openaiApiKey;
 
     const port = Number(process.env.PORT || "3001");
     if (!Number.isInteger(port) || port < 1 || port > 65_535) {

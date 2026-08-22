@@ -1,5 +1,4 @@
 import { Injectable } from "@nestjs/common";
-import "dotenv/config";
 import {
   createCipheriv,
   createDecipheriv,

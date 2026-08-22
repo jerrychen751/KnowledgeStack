@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import "dotenv/config";
 import OpenAI from "openai";
+
+import { AppConfig } from "../config/app-config.js";
 
 import { countTokens, embeddingModel } from "./embedding.model.js";
 
@@ -8,14 +9,9 @@ import { countTokens, embeddingModel } from "./embedding.model.js";
 export class EmbeddingService {
   private readonly client: OpenAI;
 
-  constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error("OPENAI_API_KEY is not set in the environment");
-    }
-
+  constructor(appConfig: AppConfig) {
     this.client = new OpenAI({
-      apiKey,
+      apiKey: appConfig.openaiApiKey,
       // The SDK retries 429 and 5xx with backoff. Two is its default, and a first sync issues many calls.
       maxRetries: 4,
     });
