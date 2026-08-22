@@ -8,6 +8,7 @@ import type {
   ChatRequest,
   ChatStreamEvent,
   Citation,
+  ContextUsage,
 } from "@knowledgestack/shared/chat";
 import type { ErrorResponse } from "@knowledgestack/shared/http";
 import type { Source, SourceListResponse } from "@knowledgestack/shared/sources";
@@ -96,6 +97,29 @@ function AnswerBody({
     });
 }
 
+function ContextRing({ usage }: { usage: ContextUsage }): ReactNode {
+  const circumference = 2 * Math.PI * 6;
+  return (
+    <span
+      className={`${styles.contextRing} ${usage.fraction >= 0.8 ? styles.contextRingHigh : ""}`}
+      title={`${usage.turnCount} of ${usage.maxTurnCount} turns and ${usage.tokenCount.toLocaleString()} of ${usage.maxTokenCount.toLocaleString()} tokens. The conversation compacts at whichever it reaches first.`}
+    >
+      <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <circle className={styles.ringTrack} cx="8" cy="8" r="6" />
+        <circle
+          className={styles.ringFill}
+          cx="8"
+          cy="8"
+          r="6"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - usage.fraction)}
+        />
+      </svg>
+      <span className={styles.contextPercent}>{Math.round(usage.fraction * 100)}% context</span>
+    </span>
+  );
+}
+
 export default function AskPage(): ReactNode {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [question, setQuestion] = useState("");
@@ -103,6 +127,9 @@ export default function AskPage(): ReactNode {
   const [activeTurnPosition, setActiveTurnPosition] = useState(0);
   const [activeCitationIndex, setActiveCitationIndex] = useState<number | null>(null);
   const [openChunkIds, setOpenChunkIds] = useState<string[]>([]);
+  const [summary, setSummary] = useState("");
+  const [compactedTurnCount, setCompactedTurnCount] = useState(0);
+  const [usage, setUsage] = useState<ContextUsage | null>(null);
   const [sources, setSources] = useState<Source[] | null>(null);
   const [models, setModels] = useState<readonly string[]>([]);
   const [modelId, setModelId] = useState("");
@@ -158,6 +185,7 @@ export default function AskPage(): ReactNode {
 
       const turnPosition = turns.length;
       const messages = turns
+        .slice(compactedTurnCount)
         .flatMap((turn) => [
           { role: "user" as const, content: turn.question },
           { role: "assistant" as const, content: turn.answer },
@@ -192,7 +220,7 @@ export default function AskPage(): ReactNode {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages, model: modelId } satisfies ChatRequest),
+          body: JSON.stringify({ messages, model: modelId, summary } satisfies ChatRequest),
         });
         if (response.status === 403) {
           window.location.assign("/workspaces");
@@ -245,6 +273,21 @@ export default function AskPage(): ReactNode {
               }));
             } else if (event.type === "delta") {
               changeTurn((turn) => ({ ...turn, answer: turn.answer + event.text }));
+            } else if (event.type === "compaction") {
+              setSummary(event.summary);
+              setCompactedTurnCount((previous) => previous + event.compactedTurnCount);
+              changeTurn((turn) => ({
+                ...turn,
+                steps: [
+                  ...turn.steps,
+                  {
+                    action: "compacted",
+                    detail: `${event.compactedTurnCount} earlier ${event.compactedTurnCount === 1 ? "turn" : "turns"} into notes`,
+                  },
+                ],
+              }));
+            } else if (event.type === "context") {
+              setUsage(event.usage);
             } else if (event.type === "error") {
               throw new Error(event.message);
             } else {
@@ -268,7 +311,7 @@ export default function AskPage(): ReactNode {
         setIsRunning(false);
       }
     },
-    [isRunning, modelId, models, turns],
+    [compactedTurnCount, isRunning, modelId, models, summary, turns],
   );
 
   const activeTurn = turns[activeTurnPosition];
@@ -416,6 +459,7 @@ export default function AskPage(): ReactNode {
               </select>
             </label>
             <p className={styles.hint}>Shift and Enter start a new line.</p>
+            {usage === null ? null : <ContextRing usage={usage} />}
           </div>
         </form>
       </section>

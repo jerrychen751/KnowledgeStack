@@ -311,6 +311,46 @@
   white-space: nowrap;
 }
 
+.contextRing {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: auto;
+  cursor: default;
+}
+
+.ringTrack {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 2;
+}
+
+.ringFill {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 2;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 300ms ease, stroke 300ms ease;
+}
+
+.contextPercent {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.contextRingHigh .ringFill {
+  stroke: var(--warn);
+}
+
+.contextRingHigh .contextPercent {
+  color: var(--warn);
+}
+
 .rail {
   display: flex;
   flex-direction: column;
