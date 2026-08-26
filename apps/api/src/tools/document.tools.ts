@@ -49,7 +49,7 @@ export class DocumentTools {
     action: "searched",
     buildDetail: (args) => (typeof args.query === "string" ? args.query.trim() : ""),
   })
-  async searchDocuments(workspaceId: string, args: Record<string, unknown>): Promise<ToolResult> {
+  async searchDocumentChunks(workspaceId: string, args: Record<string, unknown>): Promise<ToolResult> {
     const query = typeof args.query === "string" ? args.query.trim() : "";
     if (query === "") {
       return { text: "The call carried no query. Call search_documents again with a query string." };
