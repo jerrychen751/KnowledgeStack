@@ -42,7 +42,6 @@ class ReauthRequiredError extends Error {
 
 @Injectable()
 export class TokenService {
-  private readonly decryptionKeys: Map<string, Buffer>;
   private readonly encryptionKey: Buffer;
   private readonly encryptionKeyId: string;
   private readonly oauthRegistry: OAuthRegistry;
@@ -59,48 +58,18 @@ export class TokenService {
       throw new Error("TOKEN_ENCRYPTION_KEY is not set in the environment");
     }
 
-    this.encryptionKey = this.decodeEncryptionKey(
-      encodedEncryptionKey,
-      "TOKEN_ENCRYPTION_KEY",
-    );
-    this.encryptionKeyId = this.buildEncryptionKeyId(this.encryptionKey);
-    this.decryptionKeys = new Map([
-      [this.encryptionKeyId, this.encryptionKey],
-    ]);
-
-    const encodedDecryptionKeys = process.env.TOKEN_DECRYPTION_KEYS;
-    if (encodedDecryptionKeys) {
-      for (const [keyIndex, encodedDecryptionKey] of encodedDecryptionKeys
-        .split(",")
-        .entries()) {
-        const decryptionKey = this.decodeEncryptionKey(
-          encodedDecryptionKey,
-          `TOKEN_DECRYPTION_KEYS entry ${keyIndex + 1}`,
-        );
-        this.decryptionKeys.set(
-          this.buildEncryptionKeyId(decryptionKey),
-          decryptionKey,
-        );
-      }
+    this.encryptionKey = Buffer.from(encodedEncryptionKey, "base64url");
+    if (this.encryptionKey.byteLength !== 32) {
+      throw new Error(
+        `TOKEN_ENCRYPTION_KEY must decode to 32 bytes for AES-256, but it decoded to ${this.encryptionKey.byteLength}`,
+      );
     }
+    this.encryptionKeyId = createHash("sha256")
+      .update(this.encryptionKey)
+      .digest("base64url");
 
     this.oauthRegistry = oauthRegistry;
     this.prisma = prisma;
-  }
-
-  private decodeEncryptionKey(encodedKey: string, name: string): Buffer {
-    const encryptionKey = Buffer.from(encodedKey, "base64url");
-    if (encryptionKey.byteLength !== 32) {
-      throw new Error(
-        `${name} must decode to 32 bytes for AES-256, but it decoded to ${encryptionKey.byteLength}`,
-      );
-    }
-
-    return encryptionKey;
-  }
-
-  private buildEncryptionKeyId(encryptionKey: Buffer): string {
-    return createHash("sha256").update(encryptionKey).digest("base64url");
   }
 
   /**
@@ -134,37 +103,23 @@ export class TokenService {
    */
   decrypt(encrypted: string): string {
     const parts = encrypted.split(".");
-    if (parts.length === 3) {
-      for (const decryptionKey of this.decryptionKeys.values()) {
-        try {
-          return this.decryptTokenParts(parts, decryptionKey);
-        } catch {
-          continue;
-        }
-      }
-      throw new Error("No decryption key can decrypt the legacy token");
-    }
-    if (parts.length !== 5 || parts[0] !== "v1" || !parts[1]) {
+    if (parts.length !== 5 || parts[0] !== "v1") {
       throw new Error(
         "An encrypted token must have the format v1.keyId.iv.authTag.ciphertext",
       );
     }
-
-    const decryptionKey = this.decryptionKeys.get(parts[1]);
-    if (decryptionKey === undefined) {
-      throw new Error(`No decryption key matches the key id ${parts[1]}`);
+    if (parts[1] !== this.encryptionKeyId) {
+      throw new Error(
+        `The key id ${parts[1]} in the token does not match TOKEN_ENCRYPTION_KEY`,
+      );
     }
 
-    return this.decryptTokenParts(parts.slice(2), decryptionKey);
-  }
-
-  private decryptTokenParts(parts: string[], decryptionKey: Buffer): string {
-    const [initializationVector, authenticationTag, ciphertext] = parts.map(
-      (part) => Buffer.from(part, "base64url"),
-    );
+    const [initializationVector, authenticationTag, ciphertext] = parts
+      .slice(2)
+      .map((part) => Buffer.from(part, "base64url"));
     const decipher = createDecipheriv(
       "aes-256-gcm",
-      decryptionKey,
+      this.encryptionKey,
       initializationVector,
     );
     decipher.setAuthTag(authenticationTag);
@@ -262,7 +217,11 @@ export class TokenService {
         credential.expiresAt.getTime() - Date.now() >
           eagerRefreshThresholdMilliseconds)
     ) {
-      return this.decrypt(credential.encryptedAccessToken);
+      try {
+        return this.decrypt(credential.encryptedAccessToken);
+      } catch {
+        return this.refreshCredentialAccessToken(sourceId, credential.id, true);
+      }
     }
 
     return this.refreshCredentialAccessToken(
@@ -281,6 +240,8 @@ export class TokenService {
     credentialId: string,
     forceRefresh: boolean,
   ): Promise<string> {
+    const undecryptableTokenReason =
+      "the stored token does not decrypt with the current TOKEN_ENCRYPTION_KEY";
     const refreshResult = await this.prisma.$transaction(
       async (transaction): Promise<RefreshResult> => {
         await transaction.$queryRaw`
@@ -308,9 +269,12 @@ export class TokenService {
             credential.expiresAt.getTime() - Date.now() >
               eagerRefreshThresholdMilliseconds)
         ) {
-          return {
-            accessToken: this.decrypt(credential.encryptedAccessToken),
-          };
+          try {
+            return { accessToken: this.decrypt(credential.encryptedAccessToken) };
+          } catch {
+            await this.markReauthRequired(transaction, credentialId);
+            return { reauthReason: undecryptableTokenReason };
+          }
         }
 
         if (!isOAuthProvider(credential.provider)) {
@@ -331,11 +295,17 @@ export class TokenService {
           };
         }
 
+        let refreshToken: string;
+        try {
+          refreshToken = this.decrypt(credential.encryptedRefreshToken);
+        } catch {
+          await this.markReauthRequired(transaction, credentialId);
+          return { reauthReason: undecryptableTokenReason };
+        }
+
         let tokens: OAuthTokens;
         try {
-          tokens = await client.refreshTokens(
-            this.decrypt(credential.encryptedRefreshToken),
-          );
+          tokens = await client.refreshTokens(refreshToken);
         } catch (error) {
           if (
             error instanceof OAuthRequestError &&
