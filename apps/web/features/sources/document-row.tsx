@@ -24,12 +24,12 @@ export function DocumentRow({
       <span className={styles.documentName}>{document.externalTitle}</span>
       <span
         className={`${styles.documentMeta} ${
-          document._count.chunks === 0 ? styles.documentSkipped : ""
+          document.chunkCount === 0 ? styles.documentSkipped : ""
         }`}
       >
         {document.documentType === "attachment"
           ? "not text"
-          : `${document._count.chunks} ${document._count.chunks === 1 ? "chunk" : "chunks"}`}
+          : `${document.chunkCount} ${document.chunkCount === 1 ? "chunk" : "chunks"}`}
       </span>
       <span className={`${styles.documentMeta} ${styles.documentTime}`}>
         {formatTime(document.lastIndexedAt)}

@@ -28,7 +28,7 @@ export type ListSourcesResponse = {
   sources: Source[];
 };
 
-/** One document of a source, with the number of chunks it produced in `_count.chunks`. `externalUpdatedAt` is the edit time the provider reports and `lastIndexedAt` is the time the chunks were last written, both ISO 8601. `lastIndexedAt` is null until the first index pass writes a chunk. */
+/** One document of a source, with the number of chunks it produced in `chunkCount`. `externalUpdatedAt` is the edit time the provider reports and `lastIndexedAt` is the time the chunks were last written, both ISO 8601. `lastIndexedAt` is null until the first index pass writes a chunk. */
 export type SourceDocument = {
   id: string;
   externalTitle: string;
@@ -36,7 +36,7 @@ export type SourceDocument = {
   documentType: DocumentType;
   externalUpdatedAt: string;
   lastIndexedAt: string | null;
-  _count: { chunks: number };
+  chunkCount: number;
 };
 
 /** The body `GET /sources/:sourceId/documents` answers with, by title. */

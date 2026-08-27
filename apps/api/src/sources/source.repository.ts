@@ -54,7 +54,7 @@ export class SourceRepository {
   }
 
   async listDocuments(sourceId: string) {
-    return this.prisma.document.findMany({
+    const documents = await this.prisma.document.findMany({
       where: { sourceId },
       orderBy: { externalTitle: "asc" },
       select: {
@@ -67,6 +67,16 @@ export class SourceRepository {
         _count: { select: { chunks: true } },
       },
     });
+
+    return documents.map((document) => ({
+      id: document.id,
+      externalTitle: document.externalTitle,
+      externalUrl: document.externalUrl,
+      documentType: document.documentType,
+      externalUpdatedAt: document.externalUpdatedAt,
+      lastIndexedAt: document.lastIndexedAt,
+      chunkCount: document._count.chunks,
+    }));
   }
 
   /**
