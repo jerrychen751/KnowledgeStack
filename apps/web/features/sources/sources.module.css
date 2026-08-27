@@ -179,10 +179,28 @@
   background: var(--surface);
 }
 
+.connectorHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .connectorName {
   font-size: 0.9375rem;
   font-weight: 500;
   text-transform: capitalize;
+}
+
+.connectorConnected {
+  flex: none;
+  padding: 0.1875rem 0.4375rem;
+  border-radius: var(--radius);
+  background: var(--signal-wash);
+  color: var(--signal);
+  font: var(--label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
 }
 
 .connectorDetail {

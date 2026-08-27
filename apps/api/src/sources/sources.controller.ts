@@ -172,8 +172,8 @@ export class SourcesController {
   /**
    * Finish the grant the provider redirected back to, then return the browser to the sources page.
    *
-   * The provider console must hold this route as the redirect URI, such as
-   * http://127.0.0.1:3001/sources/oauth/callback.
+   * The provider console must hold the web app path that forwards to this route as the redirect URI, such as
+   * http://localhost:3000/api/sources/oauth/callback. Notion rejects an IP address here and accepts localhost.
    *
    * The route stays open, because the state value carries the workspace and a session that expired during
    * the grant would otherwise end the browser on a 401 instead of on the sources page.
