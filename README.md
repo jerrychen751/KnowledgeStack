@@ -140,8 +140,9 @@ Fill the six root database values and both API database URLs.
 The API uses the host `127.0.0.1` and the port `3001` when those values stay blank.  
 Set `API_INTERNAL_URL` to `http://127.0.0.1:3001` for the native path.  
 Set `OPENAI_API_KEY` before the API calls OpenAI.  
-Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REDIRECT_URI` before anyone signs in. Create an OAuth 2.0 client of type Web application at <https://console.cloud.google.com/apis/credentials>. Register `http://127.0.0.1:3001/auth/google/callback` as an authorized redirect URI on that client.  
-Open the web app at `http://127.0.0.1:3000`, not at `localhost:3000`. The API sets the session cookie for the host `127.0.0.1`, and a browser sends a cookie to one host name only.
+Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` before anyone signs in. The API derives the callback URL from `WEB_APP_URL`. Create an OAuth 2.0 client of type Web application at <https://console.cloud.google.com/apis/credentials>. Register `http://localhost:3000/api/auth/google/callback` as an authorized redirect URI on that client.  
+Every OAuth callback names the web app, never the API. Next.js forwards `/api/...` to the API, so the browser opens one origin and the API needs no published port.  
+Open the web app at `http://localhost:3000`, not at `127.0.0.1:3000`. The session cookie belongs to the host in `WEB_APP_URL`, and a browser sends a cookie to one host name only. Notion rejects an IP address in a redirect URI, so every browser-facing host is `localhost`.
 
 Move any current `DB_POOL_URL`, `DB_DIRECT_URL`, and `OPENAI_API_KEY` values from the root file into `apps/api/.env`.
 
@@ -156,7 +157,7 @@ pnpm dev
 
 `pnpm dev` is an alias for `pnpm dev:apps`.
 
-The web app uses `http://127.0.0.1:3000`. The API uses `http://127.0.0.1:3001`.
+Open the web app at `http://localhost:3000`. The API answers on `http://127.0.0.1:3001`, and only the Next.js server calls it.
 
 For the full container path, start every service through Compose:
 
@@ -182,7 +183,11 @@ Every page needs a Google account. `/signin` sends the browser to Google, and th
 
 Each workspace indexes its own upload directory, `UPLOAD_ROOT/<workspace id>`, so a file of one workspace never reaches the answers of another.
 
-The Notion card stays disabled until `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` and `NOTION_REDIRECT_URI` hold values. Register `http://127.0.0.1:3001/sources/oauth/callback` as the redirect URI on the integration. The Confluence card stays disabled because a Confluence source reads one space and no space picker exists yet.
+The Notion card stays disabled until `NOTION_CLIENT_ID` and `NOTION_CLIENT_SECRET` hold values. Register `WEB_APP_URL` plus `/api/sources/oauth/callback`, by default `http://localhost:3000/api/sources/oauth/callback`, as the redirect URI on the integration. One route serves every connector, because the state value carries the provider. Notion rejects an IP address in a redirect URI, so keep `WEB_APP_URL` on `localhost`.
+
+The Confluence card needs `CONFLUENCE_CLIENT_ID` and `CONFLUENCE_CLIENT_SECRET`. Create an OAuth 2.0 (3LO) integration at <https://developer.atlassian.com/console/myapps/>, pick Resource-level access, register the same redirect URI, and grant `read:page:confluence`, `read:space:confluence` and `read:me`. Atlassian asks the person for one site, and the grant then creates one source per space on that site. Remove the spaces you do not want.
+
+A provider card reads `Connected` once a source of that provider exists, and its Connect button disappears. Remove every source of that provider to connect a different account. The grant creates each source empty, so the sources page runs the first sync pass by itself and reports when the pages are searchable.
 
 `/` asks a question. The chat model reaches the index through one tool, `search_documents`, which embeds the question and ranks every chunk of the workspace by cosine distance. The answer marks each chunk it used as `[n]`, and the citations rail beside it shows that chunk, its heading path and its cosine similarity. A click on `[n]` opens the chunk the sentence came from.
 

@@ -14,7 +14,9 @@ export class AppConfig {
   readonly port: number;
   // Sets the maximum JSON body size with a unit, such as "12mb". Defaults to "12mb".
   readonly requestBodyLimit: string;
-  // Accepts only an HTTP or HTTPS origin for browser redirects, such as "https://example.com". Defaults to "http://127.0.0.1:3000".
+  readonly googleRedirectUri: string;
+  readonly sourceRedirectUri: string;
+  // Accepts only an HTTP or HTTPS origin for browser redirects, such as "https://example.com". Defaults to "http://localhost:3000".
   readonly webAppUrl: string;
 
   constructor() {
@@ -56,7 +58,7 @@ export class AppConfig {
     }
     this.requestBodyLimit = requestBodyLimit;
 
-    const configuredWebAppUrl = process.env.WEB_APP_URL || "http://127.0.0.1:3000";
+    const configuredWebAppUrl = process.env.WEB_APP_URL || "http://localhost:3000";
     let webAppUrl: URL;
     try {
       webAppUrl = new URL(configuredWebAppUrl);
@@ -73,6 +75,14 @@ export class AppConfig {
     ) {
       throw new Error("WEB_APP_URL must be a valid HTTP or HTTPS origin.");
     }
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(webAppUrl.hostname) || webAppUrl.hostname.includes(":")) {
+      throw new Error(
+        "WEB_APP_URL must name a host, such as http://localhost:3000, because Notion refuses an IP address in a redirect URI.",
+      );
+    }
     this.webAppUrl = webAppUrl.origin;
+
+    this.googleRedirectUri = `${this.webAppUrl}/api/auth/google/callback`;
+    this.sourceRedirectUri = `${this.webAppUrl}/api/sources/oauth/callback`;
   }
 }

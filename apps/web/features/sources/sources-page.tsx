@@ -153,6 +153,7 @@ export function SourcesPage(): ReactNode {
       <Section label="Connect a provider">
         <ConnectorList
           providers={connectors?.providers ?? []}
+          sources={sources}
           isBusy={isBusy}
           onConnect={(provider) => void connectProvider(provider)}
         />

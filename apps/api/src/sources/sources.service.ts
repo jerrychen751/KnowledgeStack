@@ -14,7 +14,7 @@ import type {
 
 import { OAuthRegistry } from "../auth/oauth.registry.js";
 import { isDeletableConnector } from "../connectors/connector.types.js";
-import type { OAuthProviderName } from "../auth/oauth.types.js";
+import { isOAuthProvider, type OAuthProviderName } from "../auth/oauth.types.js";
 import { TokenService } from "../auth/token.service.js";
 import { SourceProvider } from "../generated/prisma/enums.js";
 import { ConnectorResolver } from "../sync/connector.resolver.js";
@@ -88,34 +88,17 @@ export class SourcesService {
   /**
    * Report the upload directory and the state of each OAuth provider.
    *
-   * A provider is configured when its client id, client secret and redirect URI are all present. The
-   * detail of an unconfigured provider names the variables to set.
+   * A provider is configured when its client id and client secret are both present. The
+   * missingVariables of an unconfigured provider names the variables to set.
    */
   readConnectorStatus(workspaceId: string): ReadConnectorStatusResponse {
     const providers = [
       SourceProvider.notion,
       SourceProvider.confluence,
-    ].map((provider) => {
-      if (provider === SourceProvider.confluence) {
-        return {
-          provider,
-          connectable: false,
-          detail:
-            "A Confluence source reads one space, and the space picker is not built yet.",
-        };
-      }
-
-      try {
-        this.oauthRegistry.createClient(provider);
-        return { provider, connectable: true, detail: null };
-      } catch (error) {
-        return {
-          provider,
-          connectable: false,
-          detail: error instanceof Error ? error.message : "The provider is not configured.",
-        };
-      }
-    });
+    ].map((provider) => ({
+      provider,
+      missingVariables: this.oauthRegistry.findMissingVariables(provider),
+    }));
 
     return {
       uploads: {
@@ -257,7 +240,7 @@ export class SourcesService {
 
   /** Return the provider URL where the user grants access, and remember the state value the callback must return. */
   startAuthorization(workspaceId: string, provider: SourceProvider): string {
-    if (provider !== SourceProvider.notion) {
+    if (!isOAuthProvider(provider)) {
       throw new BadRequestException(`KnowledgeStack cannot connect ${provider} yet.`);
     }
 

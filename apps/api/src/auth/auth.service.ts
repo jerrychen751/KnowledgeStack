@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import type { FindAccountResponse } from "@knowledgestack/shared/auth";
 
+import { AppConfig } from "../config/app-config.js";
 import { PrismaService } from "../database/prisma.service.js";
 
 import { GoogleOAuthClient } from "./google.oauth.js";
@@ -12,13 +13,16 @@ import { SessionService, type RequestSession } from "./session.service.js";
 @Injectable()
 export class AuthService {
   constructor(
+    private readonly appConfig: AppConfig,
     private readonly prisma: PrismaService,
     private readonly sessionService: SessionService,
   ) {}
 
   /** Build the client on demand, so an API without the Google variables still starts and serves its other routes. */
   private createClient(): GoogleOAuthClient {
-    return new GoogleOAuthClient(readClientOptions("GOOGLE"));
+    return new GoogleOAuthClient(
+      readClientOptions("GOOGLE", this.appConfig.googleRedirectUri),
+    );
   }
 
   /**

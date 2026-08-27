@@ -72,7 +72,7 @@ export class AuthController {
     try {
       signIn = this.authService.startSignIn();
     } catch (error) {
-      // readClientOptions throws when the deployment configured no Google client, and its message names GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REDIRECT_URI. Nest hides the message of any error that is not an HttpException.
+      // readClientOptions throws when the deployment configured no Google client, and its message names the GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET that is absent. Nest hides the message of any error that is not an HttpException.
       throw new ServiceUnavailableException(
         error instanceof Error ? error.message : "Google sign-in is not configured.",
       );
@@ -88,9 +88,9 @@ export class AuthController {
   /**
    * Finish the sign-in Google redirected back to, set the session cookie, and return the browser to the web app.
    *
-   * The Google credentials console must hold this route as an authorized redirect URI, such as
-   * http://127.0.0.1:3001/auth/google/callback. The cookie names no domain, so it reaches the web app only
-   * when both apps answer on one host name, as 127.0.0.1:3000 and 127.0.0.1:3001 do.
+   * The Google credentials console must hold the web app path that forwards to this route as an authorized
+   * redirect URI, such as http://localhost:3000/api/auth/google/callback. The browser then sets the cookie on
+   * the web app origin, so WEB_APP_URL and the registered redirect URI must name one host.
    */
   @Public()
   @Get("google/callback")

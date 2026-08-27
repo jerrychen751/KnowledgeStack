@@ -44,7 +44,7 @@ export type ListDocumentsResponse = {
   documents: SourceDocument[];
 };
 
-/** The body `GET /sources/connectors` answers with. `fileExtensions` lists the extensions an upload may carry, such as ".md". `detail` names the reason a provider cannot connect, and is null when it can. */
+/** The body `GET /sources/connectors` answers with. `fileExtensions` lists the extensions an upload may carry, such as ".md". `missingVariables` names each environment variable the deployment must set before the provider can connect, such as ["NOTION_CLIENT_SECRET"], and is empty when it can. */
 export type ReadConnectorStatusResponse = {
   uploads: {
     directory: string;
@@ -52,8 +52,7 @@ export type ReadConnectorStatusResponse = {
   };
   providers: {
     provider: SourceProvider;
-    connectable: boolean;
-    detail: string | null;
+    missingVariables: string[];
   }[];
 };
 
