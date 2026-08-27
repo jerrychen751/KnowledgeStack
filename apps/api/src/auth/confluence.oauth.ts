@@ -133,6 +133,21 @@ export class ConfluenceOAuthClient implements RefreshableOAuthClient {
       },
     );
 
+    const resources: OAuthGrant["resources"] = [];
+    for (const site of sites) {
+      for (const space of await this.listAccessibleSpaces(token.access_token, site.id)) {
+        resources.push({
+          externalId: site.id,
+          externalSpaceId: space.id,
+          externalDisplayName: `${space.name} (${space.key})`,
+          config: { cloudId: site.id, siteUrl: site.url },
+        });
+      }
+    }
+    if (resources.length === 0) {
+      throw new Error("The Atlassian grant covers no Confluence space.");
+    }
+
     return {
       tokens: {
         accessToken: token.access_token,
@@ -147,11 +162,7 @@ export class ConfluenceOAuthClient implements RefreshableOAuthClient {
         externalUserId: account.account_id,
         externalUserEmail: account.email ?? null,
       },
-      resources: sites.map((site) => ({
-        externalId: site.id,
-        externalDisplayName: site.name,
-        config: { cloudId: site.id, siteUrl: site.url },
-      })),
+      resources,
     };
   }
 
@@ -171,7 +182,7 @@ export class ConfluenceOAuthClient implements RefreshableOAuthClient {
     );
   }
 
-  /** List every visible Confluence space for one site that the user selected. */
+  /** List the current, global Confluence spaces of one site that the user selected. A personal space and an archived one are left out, because a grant on a large site reaches one personal space per user and each space becomes a source to sync. */
   async listAccessibleSpaces(
     accessToken: string,
     cloudId: string,
@@ -180,7 +191,7 @@ export class ConfluenceOAuthClient implements RefreshableOAuthClient {
       `/ex/confluence/${encodeURIComponent(cloudId)}/wiki/api/v2/`,
       "https://api.atlassian.com",
     );
-    let nextUrl: URL | null = new URL("spaces", apiBaseUrl);
+    let nextUrl: URL | null = new URL("spaces?type=global&status=current", apiBaseUrl);
     const spaces: AtlassianSpace[] = [];
 
     while (nextUrl !== null) {

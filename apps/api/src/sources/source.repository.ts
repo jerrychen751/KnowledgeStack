@@ -135,23 +135,51 @@ export class SourceRepository {
     });
   }
 
-  /** Return the OAuth source for one provider resource, and create it when it is absent. */
-  async saveOAuthSource(
+  /** Write one source per resource of a grant, in one transaction, so a failure part way leaves no source of that grant. The credential row is already written, and `saveCredential` upserts, so a second grant repeats the whole pass safely. The timeout covers a Confluence site with several hundred spaces, at two statements per space. */
+  async saveOAuthSources(
+    workspaceId: string,
+    provider: SourceProvider,
+    credentialId: string,
+    resources: {
+      externalId: string;
+      externalSpaceId: string | null;
+      externalDisplayName: string;
+      config: Record<string, unknown>;
+    }[],
+  ): Promise<void> {
+    await this.prisma.$transaction(
+      async (transaction) => {
+        for (const resource of resources) {
+          await this.saveOAuthSource(transaction, workspaceId, provider, credentialId, resource);
+        }
+      },
+      { timeout: 30_000 },
+    );
+  }
+
+  private async saveOAuthSource(
+    transaction: Prisma.TransactionClient,
     workspaceId: string,
     provider: SourceProvider,
     credentialId: string,
     resource: {
       externalId: string;
+      externalSpaceId: string | null;
       externalDisplayName: string;
       config: Record<string, unknown>;
     },
   ): Promise<{ id: string }> {
-    const existing = await this.prisma.source.findFirst({
-      where: { workspaceId, provider, externalId: resource.externalId },
+    const existing = await transaction.source.findFirst({
+      where: {
+        workspaceId,
+        provider,
+        externalId: resource.externalId,
+        externalSpaceId: resource.externalSpaceId,
+      },
       select: { id: true },
     });
     if (existing !== null) {
-      return this.prisma.source.update({
+      return transaction.source.update({
         where: { id: existing.id },
         data: {
           credentialId,
@@ -164,12 +192,13 @@ export class SourceRepository {
       });
     }
 
-    return this.prisma.source.create({
+    return transaction.source.create({
       data: {
         workspaceId,
         provider,
         credentialId,
         externalId: resource.externalId,
+        externalSpaceId: resource.externalSpaceId,
         externalDisplayName: resource.externalDisplayName,
         config: resource.config as Prisma.InputJsonObject,
       },

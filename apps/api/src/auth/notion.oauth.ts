@@ -101,6 +101,7 @@ export class NotionOAuthClient implements RefreshableOAuthClient {
       resources: [
         {
           externalId: token.workspace_id,
+          externalSpaceId: null,
           externalDisplayName: token.workspace_name ?? "Notion workspace",
           config: { workspaceId: token.workspace_id },
         },

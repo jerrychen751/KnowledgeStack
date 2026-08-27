@@ -1,7 +1,7 @@
 "use client"; // Next.js renders components on server first and sends only HTML by default
 // This line marks the file as a client component so browser also downloads the JS
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type {
   ListDocumentsResponse,
@@ -32,9 +32,10 @@ export function SourcesPage(): ReactNode {
   );
   const [connectors, setConnectors] = useState<ReadConnectorStatusResponse | null>(null);
   const [removalAwaitingConfirmId, setRemovalAwaitingConfirmId] = useState<string | null>(null);
+  const hasSyncedTheGrant = useRef(false);
   const { notice, setNotice, busyMessage, isBusy, reportFailure, runRequest } = usePageRequest();
 
-  const loadSources = useCallback(async () => {
+  const loadSources = useCallback(async (): Promise<Source[]> => {
     // Absolute URL contains protocol (http/https) and host; relative URL may either start from root of site ('/' prefix)
     // or from relative directory (no '/' prefix)
     const body = await requestJson<ListSourcesResponse>("/api/sources");
@@ -49,6 +50,7 @@ export function SourcesPage(): ReactNode {
       }),
     );
     setDocumentsBySourceId(Object.fromEntries(documents));
+    return body.sources;
   }, []);
 
   const write = useCallback(
@@ -65,16 +67,62 @@ export function SourcesPage(): ReactNode {
       .then(setConnectors)
       .catch(() => setConnectors(null));
 
-    loadSources().catch((error: unknown) => reportFailure(error, "The sources did not load."));
-
     const parameters = new URLSearchParams(window.location.search);
     const failure = parameters.get("error");
     if (failure !== null) {
       setNotice({ text: failure, failed: true });
-    } else if (parameters.get("connected") !== null) {
-      setNotice({ text: "The source is connected. Sync it to make it searchable.", failed: false });
+      loadSources().catch(() => undefined);
+      return;
     }
-  }, [loadSources, reportFailure, setNotice]);
+
+    const shouldSyncTheGrant =
+      parameters.get("connected") !== null && !hasSyncedTheGrant.current;
+    if (shouldSyncTheGrant) {
+      hasSyncedTheGrant.current = true;
+    }
+
+    void loadSources()
+      .catch((error: unknown) => {
+        reportFailure(error, "The sources did not load.");
+        return [] as Source[];
+      })
+      .then(async (loaded) => {
+        if (!shouldSyncTheGrant) {
+          return;
+        }
+
+        const unsynced = loaded.filter((source) => source.lastSyncedAt === null);
+        if (unsynced.length === 0) {
+          setNotice({ text: "Connected.", failed: false });
+          return;
+        }
+
+        const failures: string[] = [];
+        await runRequest(
+          `Syncing ${unsynced.length} ${unsynced.length === 1 ? "source" : "sources"}`,
+          async () => {
+            for (const source of unsynced) {
+              await sendJson(`/api/sources/${source.id}/sync`, "POST").catch(() =>
+                failures.push(source.externalDisplayName),
+              );
+            }
+            await loadSources();
+          },
+        );
+
+        setNotice(
+          failures.length === 0
+            ? {
+                text: `Connected. ${unsynced.length} ${unsynced.length === 1 ? "source is" : "sources are"} searchable now.`,
+                failed: false,
+              }
+            : {
+                text: `Connected, but ${failures.length} of ${unsynced.length} did not sync: ${failures.join(", ")}. Sync ${failures.length === 1 ? "it" : "them"} again above.`,
+                failed: true,
+              },
+        );
+      });
+  }, [loadSources, reportFailure, runRequest, setNotice]);
 
   const uploadFiles = useCallback(
     async (fileList: FileList | null) => {

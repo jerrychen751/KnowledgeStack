@@ -22,6 +22,7 @@ type OAuthCredentialIdentity = {
 
 type OAuthResource = {
   externalId: string;
+  externalSpaceId: string | null;
   externalDisplayName: string;
   config: Record<string, unknown>;
 };

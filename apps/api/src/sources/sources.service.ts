@@ -288,13 +288,11 @@ export class SourcesService {
       },
     );
 
-    for (const resource of grant.resources) {
-      await this.sourceRepository.saveOAuthSource(
-        pending.workspaceId,
-        pending.provider,
-        credential.id,
-        resource,
-      );
-    }
+    await this.sourceRepository.saveOAuthSources(
+      pending.workspaceId,
+      pending.provider,
+      credential.id,
+      grant.resources,
+    );
   }
 }
