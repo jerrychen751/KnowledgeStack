@@ -6,10 +6,10 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import type { FindAccountResponse } from "@knowledgestack/shared/auth";
 
-import styles from "./shell.module.css";
+import { requestJson, sendJson } from "@/lib/api-client";
+import { workspaceChangedEvent } from "@/lib/workspace-changed-event";
 
-/** The workspaces page opens another workspace without a navigation, and the header follows this event. */
-export const workspaceChangedEvent = "knowledgestack:workspace-changed";
+import styles from "./shell.module.css";
 
 export function AccountMenu(): ReactNode {
   const [account, setAccount] = useState<FindAccountResponse | null>(null);
@@ -18,8 +18,7 @@ export function AccountMenu(): ReactNode {
   useEffect(() => {
     let isCurrent = true;
     const readAccount = () => {
-      fetch("/api/auth/session")
-        .then((response) => (response.ok ? (response.json() as Promise<FindAccountResponse>) : null))
+      requestJson<FindAccountResponse>("/api/auth/session")
         .then((body) => {
           if (isCurrent) {
             setAccount(body);
@@ -66,7 +65,7 @@ export function AccountMenu(): ReactNode {
         type="button"
         className={styles.signOut}
         onClick={async () => {
-          await fetch("/api/auth/signout", { method: "POST" });
+          await sendJson("/api/auth/signout", "POST").catch(() => undefined);
           window.location.assign("/signin");
         }}
       >

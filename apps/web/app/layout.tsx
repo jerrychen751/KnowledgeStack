@@ -3,10 +3,10 @@ import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { AccountMenu } from "./account-menu";
-import { NavLinks } from "./nav-links";
-import styles from "./shell.module.css";
-import "./globals.css";
+import { AccountMenu } from "@/features/shell/account-menu";
+import { NavLinks } from "@/features/shell/nav-links";
+import styles from "@/features/shell/shell.module.css";
+import "@/styles/globals.css";
 
 const sans = IBM_Plex_Sans({
   subsets: ["latin"],

@@ -47,6 +47,11 @@ async function forwardRequest(
     headers.append("Set-Cookie", setCookie);
   }
 
+  const location = response.headers.get("Location");
+  if (location !== null) {
+    headers.set("Location", location);
+  }
+
   // The chat answer arrives as Server-Sent Events, so the body streams through instead of being read here.
   return new Response(response.body, { status: response.status, headers });
 }
