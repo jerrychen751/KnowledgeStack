@@ -52,7 +52,7 @@ A user registers and obtains a workspace. In that workspace the user connects da
 - workspace system, where 1 or more users can connect 1 or more databases which our agent can execute safe queries against
 - the smallest version is the workspace named "SEED", where we use seed-data/ to generate the starter data (a few tables for a single database)
 - a query is "safe" because we wrap each agent query in a read-only transaction, with a user-configurable row limit
-- give the agent a tool that reads the db\_connections table of one workspace. The tool lists each table with the description of that table.
+- give the agent a tool that reads the database\_connections table of one workspace. The tool lists each table with the description of that table.
 - OAuth authentication for the web app and the MCP server
 
 ### Vocabulary
@@ -106,10 +106,10 @@ A per-provider file is named `<provider>.<role>.ts`, such as `notion.connector.t
 - expires\_at
 - user\_id
 
-###### db\_connections
+###### database\_connections
 
 - workspace\_id
-- dialect (one of a few possibilities, 'postgres', 'mysql')
+- engine (`POSTGRESQL`, `MYSQL`, or `MONGODB`; the API currently queries only `POSTGRESQL`)
 - database
 - host
 - port

@@ -9,6 +9,7 @@ import { HealthController } from "./health/health.controller.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { ChatModule } from "./chat/chat.module.js";
 import { AppConfigModule } from "./config/app-config.module.js";
+import { DatabaseConnectionsModule } from "./database-connections/database-connections.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { SourcesModule } from "./sources/sources.module.js";
 import { SyncModule } from "./sync/sync.module.js";
@@ -19,6 +20,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     AppConfigModule,
     AuthModule,
     ChatModule,
+    DatabaseConnectionsModule,
     PrismaModule,
     SourcesModule,
     SyncModule,

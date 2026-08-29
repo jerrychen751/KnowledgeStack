@@ -10,11 +10,11 @@ model Workspace {
 
   // This is a relation field; it does not create a column in the Workspace table
   // Prisma makes a field a relation from its type
-  connections DBConnection[]
-  credentials SourceCredential[]
-  memberships WorkspaceMembership[]
-  sessions    UserSession[]
-  sources     Source[]
+  databaseConnections DatabaseConnection[]
+  credentials         SourceCredential[]
+  memberships         WorkspaceMembership[]
+  sessions            UserSession[]
+  sources             Source[]
 
   @@map("workspaces")
 }
@@ -58,8 +58,8 @@ model UserSession {
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
 
-  userId String @map("user_id")
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String     @map("user_id")
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   // The workspace this browser reads, null until the person creates or joins one
   activeWorkspaceId String?    @map("active_workspace_id")
   activeWorkspace   Workspace? @relation(fields: [activeWorkspaceId], references: [id], onDelete: SetNull)

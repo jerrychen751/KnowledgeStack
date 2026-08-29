@@ -17,4 +17,4 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO agent_readon
 -- The role can change these defaults during a session.
 -- The table grants above enforce read-only table access.
 ALTER ROLE agent_readonly SET default_transaction_read_only = on;
-ALTER ROLE agent_readonly SET statement_timeout = '5s';
+ALTER ROLE agent_readonly SET statement_timeout = '60s';

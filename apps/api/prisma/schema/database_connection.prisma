@@ -1,0 +1,35 @@
+enum DatabaseEngine {
+  POSTGRESQL
+  MYSQL
+  MONGODB
+}
+
+enum DatabaseConnectionStatus {
+  active
+  error
+}
+
+model DatabaseConnection {
+  id                String                   @id @default(cuid())
+  name              String
+  description       String
+  engine            DatabaseEngine
+  host              String
+  port              Int
+  database          String
+  username          String
+  encryptedPassword String                   @map("encrypted_password")
+  status            DatabaseConnectionStatus @default(active)
+  // Time of the last check that opened a connection with the stored credentials
+  lastCheckedAt     DateTime                 @default(now()) @map("last_checked_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  // 1:N foreign key, living in DatabaseConnection table (N side)
+  workspaceId String    @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("database_connections")
+}

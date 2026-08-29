@@ -23,7 +23,7 @@ docker compose up -d --wait tenant-db
 ```
 
 The read-only role created by `03_readonly_role.sql` is `agent_readonly` /
-`agent_readonly_local`. Those values belong in the `db_connections` row that a future app seed creates
+`agent_readonly_local`. Those values belong in the `database_connections` row that a future app seed creates
 for this tenant.
 
 ## `wiki/`
