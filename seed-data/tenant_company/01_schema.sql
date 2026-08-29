@@ -1,5 +1,5 @@
 -- Vantera Semiconductor order-management extract, loaded into tenant_company.
--- No COMMENT ON statements anywhere in this folder: describeSchema reads pg_description,
+-- No COMMENT ON statements anywhere in this folder: describeTables reads pg_description,
 -- so the test schema omits database documentation on purpose.
 
 CREATE TABLE part_mstr (

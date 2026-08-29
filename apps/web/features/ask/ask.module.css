@@ -541,3 +541,112 @@
     font-size: 1.3125rem;
   }
 }
+
+.queryResult {
+  margin-top: 1rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.queryHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface-sunken);
+  text-align: left;
+}
+
+.queryHead:hover .querySqlToggle {
+  color: var(--signal);
+}
+
+.queryLabel {
+  flex: none;
+  font: var(--label);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.queryCount {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.querySqlToggle {
+  flex: none;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: var(--ink-faint);
+}
+
+.querySql {
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.queryEmpty {
+  padding: 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.queryScroll {
+  max-height: 22rem;
+  overflow: auto;
+}
+
+.queryTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.queryTable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--rule-strong);
+  background: var(--surface);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--ink-faint);
+}
+
+.queryTable td {
+  max-width: 18rem;
+  padding: 0.4375rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.queryTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.queryTable tbody tr:hover td {
+  background: var(--surface-sunken);
+}
