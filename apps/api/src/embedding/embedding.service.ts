@@ -19,7 +19,7 @@ export class EmbeddingService {
 
   private async embed(texts: readonly string[]): Promise<number[][]> {
     const response = await this.client.embeddings.create({
-      model: embeddingModel.name,
+      model: embeddingModel.modelId,
       dimensions: embeddingModel.dimensions,
       input: [...texts],
     });
