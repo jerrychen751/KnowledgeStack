@@ -3,7 +3,7 @@ import { randomInt } from "node:crypto";
 
 import type { Workspace } from "@knowledgestack/shared/workspaces";
 
-import { PrismaService } from "../database/prisma.service.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 
 // Excludes I, L, O, 0 and 1, which a person who reads a code aloud confuses.
 const joinCodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
-import { PrismaService } from "../database/prisma.service.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 import { EmbeddingService } from "../embedding/embedding.service.js";
 import type { SourceProvider } from "../generated/prisma/enums.js";
 

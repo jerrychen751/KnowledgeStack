@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 
 import { AppConfigModule } from "../config/app-config.module.js";
-import { DatabaseModule } from "../database/database.module.js";
+import { PrismaModule } from "../prisma/prisma.module.js";
 
 import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
@@ -12,7 +12,7 @@ import { SessionService } from "./session.service.js";
 import { TokenService } from "./token.service.js";
 
 @Module({
-  imports: [AppConfigModule, DatabaseModule],
+  imports: [AppConfigModule, PrismaModule],
   controllers: [AuthController],
   providers: [
     AuthService,

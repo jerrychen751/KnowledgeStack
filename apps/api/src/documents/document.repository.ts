@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
 import type { DocumentRef } from "../connectors/connector.types.js";
-import { PrismaService } from "../database/prisma.service.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 
 type DocumentChunkValues = {
   embedding: readonly number[];

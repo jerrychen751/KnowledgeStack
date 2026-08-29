@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
 
-import { PrismaService } from "../database/prisma.service.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 
 /** The cookie that carries the session token. The guard reads it and the auth controller writes it. */
 export const SESSION_COOKIE_NAME = "ks_session";

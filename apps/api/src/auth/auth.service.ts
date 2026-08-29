@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import type { FindAccountResponse } from "@knowledgestack/shared/auth";
 
 import { AppConfig } from "../config/app-config.js";
-import { PrismaService } from "../database/prisma.service.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 
 import { GoogleOAuthClient } from "./google.oauth.js";
 import { readClientOptions } from "./oauth.registry.js";

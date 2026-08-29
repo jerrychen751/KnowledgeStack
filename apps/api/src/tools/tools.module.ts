@@ -11,14 +11,14 @@
 import { Module } from "@nestjs/common";
 import { DiscoveryModule } from "@nestjs/core";
 
-import { DatabaseModule } from "../database/database.module.js";
+import { PrismaModule } from "../prisma/prisma.module.js";
 import { EmbeddingModule } from "../embedding/embedding.module.js";
 
 import { DocumentTools } from "./document.tools.js";
 import { ToolRegistry } from "./tool.registry.js";
 
 @Module({
-  imports: [DatabaseModule, DiscoveryModule, EmbeddingModule],
+  imports: [PrismaModule, DiscoveryModule, EmbeddingModule],
   providers: [DocumentTools, ToolRegistry],
   exports: [ToolRegistry],
 })

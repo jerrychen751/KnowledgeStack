@@ -6,7 +6,7 @@ import {
   randomBytes,
 } from "node:crypto";
 
-import { PrismaService } from "../database/prisma.service.js";
+import { PrismaService } from "../prisma/prisma.service.js";
 import type { Prisma } from "../generated/prisma/client.js";
 import { SourceStatus } from "../generated/prisma/enums.js";
 import type { SourceCredentialModel } from "../generated/prisma/models.js";

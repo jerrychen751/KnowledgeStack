@@ -1,12 +1,12 @@
 import { Module } from "@nestjs/common";
 
-import { DatabaseModule } from "../database/database.module.js";
+import { PrismaModule } from "../prisma/prisma.module.js";
 
 import { DocumentRepository } from "./document.repository.js";
 import { SourceSyncRepository } from "./source-sync.repository.js";
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [PrismaModule],
   providers: [SourceSyncRepository, DocumentRepository],
   exports: [SourceSyncRepository, DocumentRepository],
 })
