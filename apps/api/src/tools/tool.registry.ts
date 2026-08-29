@@ -2,16 +2,7 @@ import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { DiscoveryService, MetadataScanner } from "@nestjs/core";
 import type OpenAI from "openai";
 
-import type { Citation } from "@knowledgestack/shared/chat";
-
-/**
- * What one tool call returns.
- *
- * A tool that retrieves chunks returns them without an index, because the number belongs to the answer and
- * not to the call: a chunk that a later call returns again keeps the number the first call gave it. Every
- * other tool returns the text the model reads.
- */
-export type ToolResult = { citations: Omit<Citation, "index">[] } | { text: string };
+import { ToolSession } from "./tool.session.js";
 
 /**
  * The declaration a tool method carries.
@@ -33,7 +24,7 @@ export const Tool = DiscoveryService.createDecorator<ToolDefinition>();
 
 type RegisteredTool = {
   definition: ToolDefinition;
-  run(workspaceId: string, args: Record<string, unknown>): Promise<ToolResult>;
+  run(session: ToolSession, args: Record<string, unknown>): Promise<string>;
 };
 
 /**
@@ -114,13 +105,17 @@ export class ToolRegistry implements OnModuleInit {
     return { action: definition.action, detail };
   }
 
-  /** Run one call and return what the model reads back. The name must be one the model read from functionTools. */
+  /**
+   * Run one call and return the text the model reads back. The name must be one the model read from
+   * functionTools. A tool that draws something beside the answer emits its frames on the session, so the
+   * caller must drain the session after this call returns.
+   */
   async runTool(
+    session: ToolSession,
     name: string,
-    workspaceId: string,
     args: Record<string, unknown>,
-  ): Promise<ToolResult> {
-    return this.readTool(name).run(workspaceId, args);
+  ): Promise<string> {
+    return this.readTool(name).run(session, args);
   }
 
   private readTool(name: string): RegisteredTool {

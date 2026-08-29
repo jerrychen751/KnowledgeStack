@@ -4,7 +4,8 @@ import { PrismaService } from "../prisma/prisma.service.js";
 import { EmbeddingService } from "../embedding/embedding.service.js";
 import type { SourceProvider } from "../generated/prisma/enums.js";
 
-import { Tool, type ToolResult } from "./tool.registry.js";
+import { Tool } from "./tool.registry.js";
+import type { ToolSession } from "./tool.session.js";
 
 type SearchResult = {
   chunkId: string;
@@ -25,9 +26,10 @@ export class DocumentTools {
   ) {}
 
   /**
-   * Return the six chunks of the workspace closest to `args.query`, nearest first.
+   * Return the six chunks of the workspace closest to `args.query`, nearest first, as the numbered text the
+   * model reads, and emit them on the session for the browser to draw.
    *
-   * Answers with text instead, for the model to read, when the call carries no query. The query text is
+   * Answers with a correction, for the model to read, when the call carries no query. The query text is
    * embedded with the model that embedded the chunks, so both vectors share one space. A document indexed
    * before its embedding write finished carries a null vector and never matches.
    */
@@ -49,10 +51,10 @@ export class DocumentTools {
     action: "searched",
     buildDetail: (args) => (typeof args.query === "string" ? args.query.trim() : ""),
   })
-  async searchDocumentChunks(workspaceId: string, args: Record<string, unknown>): Promise<ToolResult> {
+  async searchDocumentChunks(session: ToolSession, args: Record<string, unknown>): Promise<string> {
     const query = typeof args.query === "string" ? args.query.trim() : "";
     if (query === "") {
-      return { text: "The call carried no query. Call search_documents again with a query string." };
+      return "The call carried no query. Call search_documents again with a query string.";
     }
 
     const queryVector = await this.embeddingService.embedQuery(query);
@@ -71,11 +73,22 @@ export class DocumentTools {
       FROM document_chunks c
       JOIN documents d ON d.id = c.document_id
       JOIN sources s ON s.id = d.source_id
-      WHERE s.workspace_id = ${workspaceId} AND c.embedding IS NOT NULL
+      WHERE s.workspace_id = ${session.workspaceId} AND c.embedding IS NOT NULL
       ORDER BY c.embedding <=> ${`[${queryVector.join(",")}]`}::vector
       LIMIT 6
     `;
 
-    return { citations: results };
+    const citations = results.map((found) => session.cite(found));
+    session.emit({ type: "citations", citations });
+    if (citations.length === 0) {
+      return "No document matched the query.";
+    }
+
+    return citations
+      .map(
+        (citation) =>
+          `[${citation.index}] ${[citation.externalTitle, ...citation.headingPath].join(" > ")}\n${citation.text}`,
+      )
+      .join("\n\n");
   }
 }

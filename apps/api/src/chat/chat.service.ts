@@ -4,10 +4,10 @@ import OpenAI from "openai";
 import type {
   ChatAnswerEvent,
   ChatMessage,
-  Citation,
 } from "@knowledgestack/shared/chat";
 import { AppConfig } from "../config/app-config.js";
 import { ToolRegistry } from "../tools/tool.registry.js";
+import { ToolSession } from "../tools/tool.session.js";
 import { CompactionService } from "./compaction.service.js";
 
 @Injectable()
@@ -133,7 +133,7 @@ export class ChatService {
         ].join("\n"),
       });
     }
-    const citationsByChunkId = new Map<string, Citation>();
+    const session = new ToolSession(workspaceId);
     let answerText = "";
     let isAnswered = false;
 
@@ -199,49 +199,12 @@ export class ChatService {
         }
 
         yield { type: "tool", ...this.toolRegistry.describeCall(toolCall.name, call.args) };
-        const result = await this.toolRegistry.runTool(
-          toolCall.name,
-          workspaceId,
-          call.args,
-        );
-        if ("text" in result) {
-          input.push({
-            type: "function_call_output",
-            call_id: toolCall.call_id,
-            output: result.text,
-          });
-          continue;
-        }
-
-        const roundCitations = result.citations.map((found) => {
-          // A second search often returns a chunk the first one already numbered; that chunk keeps its number.
-          const citation = citationsByChunkId.get(found.chunkId) ?? {
-            index: citationsByChunkId.size + 1,
-            chunkId: found.chunkId,
-            externalTitle: found.externalTitle,
-            externalUrl: found.externalUrl,
-            provider: found.provider,
-            headingPath: found.headingPath,
-            text: found.text,
-            score: found.score,
-          };
-          citationsByChunkId.set(found.chunkId, citation);
-          return citation;
-        });
-
-        yield { type: "citations", citations: roundCitations };
+        const output = await this.toolRegistry.runTool(session, toolCall.name, call.args);
+        yield* session.drainEvents();
         input.push({
           type: "function_call_output",
           call_id: toolCall.call_id,
-          output:
-            roundCitations.length === 0
-              ? "No document matched the query."
-              : roundCitations
-                  .map(
-                    (citation) =>
-                      `[${citation.index}] ${[citation.externalTitle, ...citation.headingPath].join(" > ")}\n${citation.text}`,
-                  )
-                  .join("\n\n"),
+          output,
         });
       }
     }
