@@ -3,17 +3,17 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Label } from "@/components/label";
 
 import styles from "./ask.module.css";
-import type { Turn } from "./use-answer-stream";
+import type { Turn } from "@knowledgestack/shared/chat";
 
 /** The right rail of the ask page. It lists every chunk the searches of `turn` retrieved, dims the ones the answer did not cite, and opens the full chunk text on a click. `turn` is undefined before the first question. */
 export function CitationRail({
   turn,
-  activeTurnPosition,
+  activeTurnIndex,
   activeCitationIndex,
   onSelect,
 }: {
   turn: Turn | undefined;
-  activeTurnPosition: number;
+  activeTurnIndex: number;
   activeCitationIndex: number | null;
   onSelect: (index: number) => void;
 }): ReactNode {
@@ -25,7 +25,7 @@ export function CitationRail({
         .getElementById(`citation-${activeCitationIndex}`)
         ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
-  }, [activeCitationIndex, activeTurnPosition]);
+  }, [activeCitationIndex, activeTurnIndex]);
 
   // The retrieval returns more chunks than the answer uses, so the rail marks the ones it cited.
   const citedIndexes = new Set(
@@ -81,12 +81,16 @@ export function CitationRail({
                         <span
                           key={tickPosition}
                           className={`${styles.tick} ${
-                            tickPosition < Math.round(citation.score * 16) ? styles.tickFilled : ""
+                            tickPosition < Math.round(citation.similarityScore * 16)
+                              ? styles.tickFilled
+                              : ""
                           }`}
                         />
                       ))}
                     </span>
-                    <span className={styles.score}>similarity {citation.score.toFixed(2)}</span>
+                    <span className={styles.similarityScore}>
+                      similarity {citation.similarityScore.toFixed(2)}
+                    </span>
                   </span>
                   <span
                     className={`${styles.chunk} ${

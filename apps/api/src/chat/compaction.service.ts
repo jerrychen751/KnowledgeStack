@@ -2,15 +2,21 @@ import { Injectable, Logger } from "@nestjs/common";
 import { getEncoding, type Tiktoken } from "js-tiktoken";
 import OpenAI from "openai";
 
-import type { ChatMessage, ContextUsage } from "@knowledgestack/shared/chat";
+import type { ContextUsage } from "@knowledgestack/shared/chat";
 import { AppConfig } from "../config/app-config.js";
+
+/** One message the API sends to the model. AgentLoop and CompactionService are its only readers, so it stays out of the shared package. */
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
 
 @Injectable()
 export class CompactionService {
   /**
-   * When a conversation compacts, and how much of it survives.
+   * When a chat compacts, and how much of it survives.
    *
-   * A conversation compacts when it reaches either limit, because each one runs out on its own: 100 short
+   * A chat compacts when it reaches either limit, because each one runs out on its own: 100 short
    * turns cost far less than 256000 tokens, and 12 turns that quote whole documents cost far more.
    *
    * `keptTurnFraction` leaves the newest tenth of the turns as written, so the summary covers the older
@@ -59,7 +65,7 @@ export class CompactionService {
   }
 
   /**
-   * Measure the conversation the browser sent against the two compaction limits.
+   * Measure the messages the caller built from the stored turns against the two compaction limits.
    *
    * The count covers the summary and the message content only. The instructions, the tool declarations and
    * the search results of one answer are not in it, because a compaction cannot shrink any of them.
@@ -107,8 +113,8 @@ export class CompactionService {
     const response = await this.client.responses.create({
       model: modelId,
       instructions: [
-        "You summarize the older part of a conversation between a person and an assistant that answers from stored documents.",
-        "Write notes that let the assistant continue the conversation after the turns you read are gone.",
+        "You summarize the older part of a chat between a person and an assistant that answers from stored documents.",
+        "Write notes that let the assistant continue the chat after the turns you read are gone.",
         "A first message headed 'Earlier notes:' holds the notes of an earlier compaction. Fold every fact in it into your notes.",
         "Keep what the person wants, every fact an answer established, every document title and heading an answer cited, every decision, and every question still open.",
         "Copy each name, identifier, number, date and quoted phrase exactly as it appears.",
@@ -116,7 +122,7 @@ export class CompactionService {
         "Drop greetings, the wording of the answers, and any text that repeats.",
         "Write short statements under these four headings: Goal, Facts, Documents, Open questions.",
         "Write no more than 400 words.",
-        "Never answer the conversation. Write the notes and nothing else.",
+        "Never answer the chat. Write the notes and nothing else.",
       ].join("\n"),
       input: [
         ...earlierNotes,
@@ -136,20 +142,20 @@ export class CompactionService {
   /**
    * Summarize the oldest turns into notes, and report the messages the answer runs on.
    *
-   * The result is null when the conversation does not compact: no turn can go, because the newest turns
+   * The result is null when the chat does not compact: no turn can go, because the newest turns
    * alone fill the budget; or the model call failed; or the model wrote no notes. The answer then runs on
-   * the whole conversation, and `truncation: "auto"` on the request drops the oldest items if the model
+   * the whole chat, and `truncation: "auto"` on the request drops the oldest items if the model
    * context cannot hold it. A null result never drops a turn, because notes that are absent or empty would
    * take the compacted turns with them.
    *
-   * The caller must send `summary` and `compactedTurnCount` to the browser. The browser holds the
-   * conversation, so a compaction the browser never records runs again on the next question.
+   * The caller must write `summary` and `turnCount`, the compacted turn count, onto the chat row. A
+   * compaction that no row records runs again on the next question.
    */
   async compact(
     summary: string,
     messages: readonly ChatMessage[],
     modelId: string,
-  ): Promise<{ summary: string; messages: ChatMessage[]; compactedTurnCount: number } | null> {
+  ): Promise<{ summary: string; messages: ChatMessage[]; turnCount: number } | null> {
     const turns = this.splitTurns(messages);
     const keptTurnCount = Math.max(
       this.limits.minKeptTurnCount,
@@ -164,7 +170,7 @@ export class CompactionService {
     try {
       notes = await this.summarize(summary, turns.slice(0, compactedTurnCount), modelId);
     } catch (error) {
-      Logger.warn(`The conversation could not compact: ${String(error)}`, CompactionService.name);
+      Logger.warn(`The chat could not compact: ${String(error)}`, CompactionService.name);
     }
     if (notes === "") {
       return null;
@@ -173,7 +179,7 @@ export class CompactionService {
     return {
       summary: notes,
       messages: turns.slice(compactedTurnCount).flat(),
-      compactedTurnCount,
+      turnCount: compactedTurnCount,
     };
   }
 }

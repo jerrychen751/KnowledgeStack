@@ -119,7 +119,7 @@
   color: var(--ink-faint);
 }
 
-.stepQuery {
+.stepText {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -480,7 +480,7 @@
   background: var(--signal);
 }
 
-.score {
+.similarityScore {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.6875rem;
   color: var(--ink-soft);

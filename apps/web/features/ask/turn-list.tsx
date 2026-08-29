@@ -2,43 +2,40 @@ import type { ReactNode } from "react";
 
 import { AnswerBody } from "./answer-body";
 import styles from "./ask.module.css";
-import type { Turn } from "./use-answer-stream";
+import type { Turn } from "@knowledgestack/shared/chat";
 
-/** The thread: one article per turn, with the question, the model, the tool steps, and the answer. Only the turn at `activeTurnPosition` highlights a citation mark, because the rail shows that turn alone. */
+/** The thread: one article per turn, with the question, the model, the tool steps, the rows of every database query, and the answer. Only the turn at `activeTurnIndex` highlights a citation mark, because the rail shows that turn alone. */
 export function TurnList({
   turns,
-  activeTurnPosition,
+  activeTurnIndex,
   activeCitationIndex,
   onCitationSelect,
 }: {
   turns: Turn[];
-  activeTurnPosition: number;
+  activeTurnIndex: number;
   activeCitationIndex: number | null;
-  onCitationSelect: (turnPosition: number, citationIndex: number) => void;
+  onCitationSelect: (turnIndex: number, citationIndex: number) => void;
 }): ReactNode {
   return (
     <div className={styles.streamInner}>
       {turns.map((turn, position) => (
         <article
           key={position}
-          className={`${styles.turn} ${position === activeTurnPosition ? styles.turnActive : ""}`}
+          className={`${styles.turn} ${position === activeTurnIndex ? styles.turnActive : ""}`}
         >
           <h2 className={styles.question}>{turn.question}</h2>
           {turn.modelId === "" ? null : (
             <p className={styles.step}>
               <span className={styles.stepLabel}>model</span>
-              <span className={styles.stepQuery}>{turn.modelId}</span>
+              <span className={styles.stepText}>{turn.modelId}</span>
             </p>
           )}
-          {turn.steps.map((step, stepPosition) => (
+          {turn.displayTexts.map((step, stepPosition) => (
             <p key={stepPosition} className={styles.step}>
-              <span className={styles.stepLabel}>{step.action}</span>
-              {step.detail === "" ? null : (
-                <span className={styles.stepQuery}>{step.detail}</span>
-              )}
+              <span className={styles.stepText}>{step}</span>
             </p>
           ))}
-          {turn.state === "running" && turn.steps.length === 0 ? (
+          {turn.state === "running" && turn.displayTexts.length === 0 ? (
             <p className={styles.step}>
               <span className={styles.stepLabel}>reading the question</span>
             </p>
@@ -47,7 +44,7 @@ export function TurnList({
             <div className={styles.answer}>
               <AnswerBody
                 text={turn.answer}
-                activeCitationIndex={position === activeTurnPosition ? activeCitationIndex : null}
+                activeCitationIndex={position === activeTurnIndex ? activeCitationIndex : null}
                 onCitationSelect={(citationIndex) => onCitationSelect(position, citationIndex)}
               />
             </div>

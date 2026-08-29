@@ -9,14 +9,13 @@ import { ToolSession } from "./tool.session.js";
  *
  * The model reads `name`, `description` and `parameters`, and `parameters` is a JSON Schema object such as
  * `{ type: "object", properties: { query: { type: "string" } }, required: ["query"] }`. The browser shows
- * `action` and the result of `buildDetail` while the call runs, such as "searched" and "pension rules".
+ * the tool display text from `buildDisplayText` while the call runs, such as "searched pension rules".
  */
 type ToolDefinition = {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  action: string;
-  buildDetail(args: Record<string, unknown>): string;
+  buildDisplayText(args: Record<string, unknown>): string;
 };
 
 /** Declare a method as a tool the chat agent may call. Its class must be a provider of a module the app imports, or ToolRegistry never finds the method. */
@@ -30,23 +29,23 @@ type RegisteredTool = {
 /**
  * Every tool the chat agent may call, read once at startup from the @Tool methods of the providers.
  *
- * ChatService sends `functionTools` with each request and calls `runTool` with the name the model chose.
+ * AgentLoop sends `functionTools` with each request and calls `run` with the name the model chose.
  * An MCP server reports the same declarations and reaches the same methods.
  */
 @Injectable()
 export class ToolRegistry implements OnModuleInit {
   readonly functionTools: OpenAI.Responses.FunctionTool[] = [];
 
-  private readonly toolsByName = new Map<string, RegisteredTool>();
+  private readonly byName = new Map<string, RegisteredTool>();
 
   /** Every tool name the model may call, in registration order. */
-  get toolNames(): string[] {
-    return [...this.toolsByName.keys()];
+  get names(): string[] {
+    return [...this.byName.keys()];
   }
 
   /** Whether a method declares this tool. The model can name a tool that no method declares. */
-  hasTool(name: string): boolean {
-    return this.toolsByName.has(name);
+  has(name: string): boolean {
+    return this.byName.has(name);
   }
 
   constructor(
@@ -68,12 +67,12 @@ export class ToolRegistry implements OnModuleInit {
         if (definition === undefined) {
           continue;
         }
-        if (this.toolsByName.has(definition.name)) {
+        if (this.byName.has(definition.name)) {
           throw new Error(`Two methods declare the tool ${definition.name}.`);
         }
 
         const method = instance[methodName] as RegisteredTool["run"];
-        this.toolsByName.set(definition.name, { definition, run: method.bind(instance) });
+        this.byName.set(definition.name, { definition, run: method.bind(instance) });
         this.functionTools.push({
           type: "function",
           name: definition.name,
@@ -84,25 +83,26 @@ export class ToolRegistry implements OnModuleInit {
       }
     }
 
-    Logger.log(`Registered tools: ${this.toolNames.join(", ")}`, ToolRegistry.name);
+    Logger.log(`Registered tools: ${this.names.join(", ")}`, ToolRegistry.name);
   }
 
   /**
-   * Report the words the browser shows while one call runs. Call hasTool first.
+   * Build the tool display text the browser shows while one call runs. Call `has` first.
    *
-   * A buildDetail that throws yields an empty detail. The detail is display text, so a fault in one tool
-   * declaration must not end the answer of a person.
+   * A callback fault returns a readable tool name. A fault in the tool display text must not stop the answer.
    */
-  describeCall(name: string, args: Record<string, unknown>): { action: string; detail: string } {
-    const { definition } = this.readTool(name);
-    let detail = "";
+  buildDisplayText(name: string, args: Record<string, unknown>): string {
+    const { definition } = this.read(name);
     try {
-      detail = definition.buildDetail(args);
+      return definition.buildDisplayText(args);
     } catch (error) {
-      Logger.warn(`The tool ${name} could not describe its call: ${String(error)}`, ToolRegistry.name);
+      Logger.warn(
+        `The tool ${name} could not build its display text: ${String(error)}`,
+        ToolRegistry.name,
+      );
     }
 
-    return { action: definition.action, detail };
+    return name.replaceAll("_", " ");
   }
 
   /**
@@ -110,16 +110,16 @@ export class ToolRegistry implements OnModuleInit {
    * functionTools. A tool that draws something beside the answer emits its frames on the session, so the
    * caller must drain the session after this call returns.
    */
-  async runTool(
+  async run(
     session: ToolSession,
     name: string,
     args: Record<string, unknown>,
   ): Promise<string> {
-    return this.readTool(name).run(session, args);
+    return this.read(name).run(session, args);
   }
 
-  private readTool(name: string): RegisteredTool {
-    const tool = this.toolsByName.get(name);
+  private read(name: string): RegisteredTool {
+    const tool = this.byName.get(name);
     if (tool === undefined) {
       throw new Error(`No method declares the tool ${name}.`);
     }

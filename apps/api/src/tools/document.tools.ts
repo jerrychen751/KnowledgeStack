@@ -12,7 +12,7 @@ type SearchResult = {
   text: string;
   headingPath: string[];
   // Cosine similarity from 0 through 1. pgvector returns the distance, and the query subtracts it from 1.
-  score: number;
+  similarityScore: number;
   externalTitle: string;
   externalUrl: string;
   provider: SourceProvider;
@@ -34,7 +34,7 @@ export class DocumentTools {
    * before its embedding write finished carries a null vector and never matches.
    */
   @Tool({
-    name: "search_documents",
+    name: "search_document_chunks",
     description: "Search the workspace documents by meaning and return the closest chunks.",
     parameters: {
       type: "object",
@@ -48,13 +48,13 @@ export class DocumentTools {
       required: ["query"],
       additionalProperties: false,
     },
-    action: "searched",
-    buildDetail: (args) => (typeof args.query === "string" ? args.query.trim() : ""),
+    buildDisplayText: (args) =>
+      `searched ${typeof args.query === "string" ? args.query.trim() : ""}`.trim(),
   })
   async searchDocumentChunks(session: ToolSession, args: Record<string, unknown>): Promise<string> {
     const query = typeof args.query === "string" ? args.query.trim() : "";
     if (query === "") {
-      return "The call carried no query. Call search_documents again with a query string.";
+      return "The call carried no query. Call search_document_chunks again with a query string.";
     }
 
     const queryVector = await this.embeddingService.embedQuery(query);
@@ -66,7 +66,7 @@ export class DocumentTools {
         c.id AS "chunkId",
         c.text,
         c.heading_path AS "headingPath",
-        1 - (c.embedding <=> ${`[${queryVector.join(",")}]`}::vector) AS "score",
+        1 - (c.embedding <=> ${`[${queryVector.join(",")}]`}::vector) AS "similarityScore",
         d.external_title AS "externalTitle",
         d.external_url AS "externalUrl",
         s.provider
@@ -84,6 +84,7 @@ export class DocumentTools {
       return "No document matched the query.";
     }
 
+    // Example entry may read `[2] Pension rules > Vesting\nA member vests after three years.`, and a blank line joins two entries.
     return citations
       .map(
         (citation) =>

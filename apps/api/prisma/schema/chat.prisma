@@ -1,0 +1,44 @@
+enum TurnState {
+  running
+  done
+  error
+}
+
+model Chat {
+  id                 String   @id @default(cuid())
+  title              String
+  summary            String   @default("")
+  compactedTurnCount Int      @default(0) @map("compacted_turn_count")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  workspaceId String    @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turns       Turn[]
+
+  @@index([workspaceId, userId, updatedAt(sort: Desc)])
+  @@map("chats")
+}
+
+// A turn is a weak entity: the chat and the place inside it are its identity, so it carries no id of its own.
+model Turn {
+  turnIndex    Int       @map("turn_index")
+  question     String
+  answer       String    @default("")
+  modelId      String    @map("model_id")
+  state        TurnState @default(running)
+  errorMessage String    @default("") @map("error_message")
+  displayTexts Json      @default("[]") @map("display_texts")
+  citations    Json      @default("[]")
+  queryResults Json      @default("[]") @map("query_results")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  chatId String @map("chat_id")
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, turnIndex])
+  @@map("turns")
+}

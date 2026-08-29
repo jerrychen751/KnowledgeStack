@@ -67,7 +67,7 @@ One thing carries one name, from the Postgres column to the button label.
 | sync | The source-level pass that lists, embeds and deletes. `POST /sources/:sourceId/sync`, `last_synced_at`. | index, re-index |
 | index | Writing the chunks of one document. `last_indexed_at`, `reindexDocument`. | sync |
 | citation | A retrieved chunk shown beside the answer. | evidence |
-| document | A page or a file of a source. The search tool is `search_documents`. | doc |
+| document | A page or a file of a source. The search tool is `search_document_chunks`. | doc |
 | tenant | The demo company database alone: the `tenant-db` container, `TENANT_POSTGRES_*` and `seed-data/tenant_company/`. | a workspace |
 
 A per-provider file is named `<provider>.<role>.ts`, such as `notion.connector.ts` and `notion.oauth.ts`. A file shared by every provider is named `connector.<role>.ts`.
@@ -189,9 +189,9 @@ The Confluence card needs `CONFLUENCE_CLIENT_ID` and `CONFLUENCE_CLIENT_SECRET`.
 
 A provider card reads `Connected` once a source of that provider exists, and its Connect button disappears. Remove every source of that provider to connect a different account. The grant creates each source empty, so the sources page runs the first sync pass by itself and reports when the pages are searchable.
 
-`/` asks a question. The chat model reaches the index through one tool, `search_documents`, which embeds the question and ranks every chunk of the workspace by cosine distance. The answer marks each chunk it used as `[n]`, and the citations rail beside it shows that chunk, its heading path and its cosine similarity. A click on `[n]` opens the chunk the sentence came from.
+`/` asks a question. The chat model reaches the index through one tool, `search_document_chunks`, which embeds the question and ranks every chunk of the workspace by cosine distance. The answer marks each chunk it used as `[n]`, and the citations rail beside it shows that chunk, its heading path and its cosine similarity. A click on `[n]` opens the chunk the sentence came from.
 
-The menu under the question box picks the model that writes the answer. `chat/chat.service.ts` holds the three choices, and the first one, `gpt-5.6-luna`, answers a request that names no model.
+The menu under the question box picks the model that writes the answer. `chat/agent.loop.ts` holds the three choices, and the first one, `gpt-5.6-luna`, answers a request that names no model.
 
 sync/
 - connector.resolver.ts

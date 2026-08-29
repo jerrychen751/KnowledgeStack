@@ -10,6 +10,7 @@ model Workspace {
 
   // This is a relation field; it does not create a column in the Workspace table
   // Prisma makes a field a relation from its type
+  chats               Chat[]
   databaseConnections DatabaseConnection[]
   credentials         SourceCredential[]
   memberships         WorkspaceMembership[]
@@ -30,6 +31,7 @@ model User {
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
+  chats       Chat[]
   memberships WorkspaceMembership[]
   sessions    UserSession[]
 

@@ -14,16 +14,16 @@ import { Opening } from "./opening";
 import { TurnList } from "./turn-list";
 import { useAnswerStream } from "./use-answer-stream";
 
-export function AskPage(): ReactNode {
+export function AskPage({ chatId }: { chatId: string | null }): ReactNode {
   const [question, setQuestion] = useState("");
-  const [activeTurnPosition, setActiveTurnPosition] = useState(0);
+  const [activeTurnIndex, setActiveTurnIndex] = useState(0);
   const [activeCitationIndex, setActiveCitationIndex] = useState<number | null>(null);
   const [sources, setSources] = useState<Source[] | null>(null);
-  const [models, setModels] = useState<readonly string[]>([]);
+  const [modelIds, setModelIds] = useState<readonly string[]>([]);
   const [modelId, setModelId] = useState("");
   const streamRef = useRef<HTMLDivElement>(null);
   const isPinnedToBottom = useRef(true);
-  const { turns, isRunning, usage, askQuestion } = useAnswerStream(modelId, models);
+  const { turns, isRunning, usage, askQuestion } = useAnswerStream(chatId, modelId, modelIds);
 
   useEffect(() => {
     requestJson<ListSourcesResponse>("/api/sources")
@@ -32,10 +32,10 @@ export function AskPage(): ReactNode {
 
     requestJson<ListModelsResponse>("/api/chat/models")
       .then((body) => {
-        setModels(body.models);
+        setModelIds(body.modelIds);
         setModelId(body.defaultModelId);
       })
-      .catch(() => setModels([]));
+      .catch(() => setModelIds([]));
   }, []);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export function AskPage(): ReactNode {
       return;
     }
 
-    setActiveTurnPosition(turns.length);
+    setActiveTurnIndex(turns.length);
     setActiveCitationIndex(null);
     setQuestion("");
     isPinnedToBottom.current = true;
@@ -74,10 +74,10 @@ export function AskPage(): ReactNode {
           ) : (
             <TurnList
               turns={turns}
-              activeTurnPosition={activeTurnPosition}
+              activeTurnIndex={activeTurnIndex}
               activeCitationIndex={activeCitationIndex}
-              onCitationSelect={(turnPosition, citationIndex) => {
-                setActiveTurnPosition(turnPosition);
+              onCitationSelect={(turnIndex, citationIndex) => {
+                setActiveTurnIndex(turnIndex);
                 setActiveCitationIndex(citationIndex);
               }}
             />
@@ -89,16 +89,16 @@ export function AskPage(): ReactNode {
           onQuestionChange={setQuestion}
           onSubmit={submitQuestion}
           isRunning={isRunning}
-          models={models}
+          modelIds={modelIds}
           modelId={modelId}
-          onModelChange={setModelId}
+          onModelIdChange={setModelId}
           usage={usage}
         />
       </section>
 
       <CitationRail
-        turn={turns[activeTurnPosition]}
-        activeTurnPosition={activeTurnPosition}
+        turn={turns[activeTurnIndex]}
+        activeTurnIndex={activeTurnIndex}
         activeCitationIndex={activeCitationIndex}
         onSelect={setActiveCitationIndex}
       />

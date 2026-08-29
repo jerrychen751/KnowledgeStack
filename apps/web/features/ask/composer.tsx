@@ -13,18 +13,18 @@ export function Composer({
   onQuestionChange,
   onSubmit,
   isRunning,
-  models,
+  modelIds,
   modelId,
-  onModelChange,
+  onModelIdChange,
   usage,
 }: {
   question: string;
   onQuestionChange: (question: string) => void;
   onSubmit: () => void;
   isRunning: boolean;
-  models: readonly string[];
+  modelIds: readonly string[];
   modelId: string;
-  onModelChange: (modelId: string) => void;
+  onModelIdChange: (modelId: string) => void;
   usage: ContextUsage | null;
 }): ReactNode {
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -76,12 +76,12 @@ export function Composer({
           <select
             className={styles.modelSelect}
             value={modelId}
-            disabled={isRunning || models.length === 0}
-            onChange={(event) => onModelChange(event.target.value)}
+            disabled={isRunning || modelIds.length === 0}
+            onChange={(event) => onModelIdChange(event.target.value)}
           >
-            {models.map((model) => (
-              <option key={model} value={model}>
-                {model}
+            {modelIds.map((modelId) => (
+              <option key={modelId} value={modelId}>
+                {modelId}
               </option>
             ))}
           </select>

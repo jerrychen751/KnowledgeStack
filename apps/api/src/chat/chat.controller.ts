@@ -1,12 +1,26 @@
-import { BadRequestException, Body, Controller, Get, Post, Res } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Res,
+} from "@nestjs/common";
 
 import type {
-  ChatMessage,
   ChatStreamEvent,
+  CreateChatResponse,
+  ListChatsResponse,
   ListModelsResponse,
+  ReadChatResponse,
 } from "@knowledgestack/shared/chat";
+import type { StatusResponse } from "@knowledgestack/shared/http";
 
-import { ActiveWorkspaceId } from "../auth/session.decorator.js";
+import { ActiveWorkspaceId, CurrentSession } from "../auth/session.decorator.js";
+import type { RequestSession } from "../auth/session.service.js";
 
 import { ChatService } from "./chat.service.js";
 
@@ -14,6 +28,7 @@ import { ChatService } from "./chat.service.js";
 type StreamingResponse = {
   end(): void;
   flushHeaders(): void;
+  on(event: "close", listener: () => void): void;
   setHeader(name: string, value: string): void;
   write(chunk: string): boolean;
 };
@@ -22,89 +37,125 @@ type StreamingResponse = {
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
-  /** Report the models a question can run on, and the one the API uses when the request names none. */
+  /** Report the models a question can run on, and the one the API uses when the request names none. Nest matches in declaration order, so this route must stay above the ones that read :chatId. */
   @Get("models")
   listModels(): ListModelsResponse {
     return {
-      models: this.chatService.models,
-      defaultModelId: this.chatService.models[0],
+      modelIds: this.chatService.modelIds,
+      defaultModelId: this.chatService.modelIds[0],
     };
   }
 
-  private readModelId(body: unknown): string {
-    const modelId = (body as { model?: unknown } | null)?.model;
-    if (modelId === undefined || modelId === null || modelId === "") {
-      return this.chatService.models[0];
+  @Get()
+  async listChats(
+    @ActiveWorkspaceId() workspaceId: string,
+    @CurrentSession() session: RequestSession,
+  ): Promise<ListChatsResponse> {
+    return { chats: await this.chatService.listChats(workspaceId, session.userId) };
+  }
+
+  /** Open one empty chat. The browser calls this before the first question and puts the id in the URL. */
+  @Post()
+  async createChat(
+    @ActiveWorkspaceId() workspaceId: string,
+    @CurrentSession() session: RequestSession,
+  ): Promise<CreateChatResponse> {
+    return { chat: await this.chatService.createChat(workspaceId, session.userId) };
+  }
+
+  @Get(":chatId")
+  async readChat(
+    @Param("chatId") chatId: string,
+    @ActiveWorkspaceId() workspaceId: string,
+    @CurrentSession() session: RequestSession,
+  ): Promise<ReadChatResponse> {
+    return this.chatService.readChat(workspaceId, session.userId, chatId);
+  }
+
+  @Delete(":chatId")
+  @HttpCode(200)
+  async deleteChat(
+    @Param("chatId") chatId: string,
+    @ActiveWorkspaceId() workspaceId: string,
+    @CurrentSession() session: RequestSession,
+  ): Promise<StatusResponse> {
+    await this.chatService.deleteChat(workspaceId, session.userId, chatId);
+
+    return { status: "ok" };
+  }
+
+  private readQuestion(body: unknown): string {
+    const question = (body as { question?: unknown } | null)?.question;
+    if (typeof question !== "string" || question.trim() === "") {
+      throw new BadRequestException("question must be a non-empty string.");
     }
-    if (typeof modelId !== "string" || !this.chatService.models.includes(modelId)) {
+    // The process limit is REQUEST_BODY_LIMIT, and no model context holds a question this long.
+    if (question.length > 1_000_000) {
+      throw new BadRequestException("question must hold 1000000 characters or fewer.");
+    }
+
+    return question.trim();
+  }
+
+  private readModelId(body: unknown): string {
+    const modelId = (body as { modelId?: unknown } | null)?.modelId;
+    if (modelId === undefined || modelId === null || modelId === "") {
+      return this.chatService.modelIds[0];
+    }
+    if (typeof modelId !== "string" || !this.chatService.modelIds.includes(modelId)) {
       throw new BadRequestException(
-        `model must be one of ${this.chatService.models.join(", ")}.`,
+        `modelId must be one of ${this.chatService.modelIds.join(", ")}.`,
       );
     }
 
     return modelId;
   }
 
-  private readChatMessages(body: unknown): ChatMessage[] {
-    const messages = (body as { messages?: unknown } | null)?.messages;
-    if (!Array.isArray(messages) || messages.length === 0) {
-      throw new BadRequestException("messages must be a non-empty array.");
-    }
-
-    return messages.map((message) => {
-      const role = (message as { role?: unknown }).role;
-      const content = (message as { content?: unknown }).content;
-      if (role !== "user" && role !== "assistant") {
-        throw new BadRequestException("Each message role must be user or assistant.");
-      }
-      if (typeof content !== "string" || content.trim() === "") {
-        throw new BadRequestException("Each message content must be a non-empty string.");
-      }
-
-      return { role, content };
-    });
-  }
-
-  /** Read the notes a compaction of an earlier answer wrote, or an empty string when the conversation never compacted. */
-  private readSummary(body: unknown): string {
-    const summary = (body as { summary?: unknown } | null)?.summary;
-    if (summary === undefined || summary === null) {
-      return "";
-    }
-    if (typeof summary !== "string") {
-      throw new BadRequestException("summary must be a string.");
-    }
-
-    return summary;
-  }
-
   /**
-   * Stream the answer to the last message as Server-Sent Events.
+   * Add one turn to the chat and stream the answer as Server-Sent Events.
    *
-   * Every frame is one JSON object on a `data:` line. The `type` field is `tool`, `citations`, `delta`,
-   * `compaction` or `context` while the answer runs, then `done` on success or `error` on failure. The client
-   * must treat a stream that ends without `done` as a failure, because the headers leave before the first
-   * search starts. A client that discards a `compaction` frame keeps sending the turns the frame summarized,
-   * and the next question compacts them again.
+   * Every frame is one JSON object on a `data:` line. An answer can send `tool`, `citations`, `rows`,
+   * `delta`, `compaction` and `context` frames. It then sends `done` on success or `error` on failure. The
+   * client must treat a stream that ends without `done` as a failure, because the headers leave before the
+   * first search.
+   *
+   * A closed browser ends the loop through the `close` listener. A write to a closed socket does not stop a
+   * `for await` loop by itself, so without that listener the answer runs to the end and pays for every model
+   * call.
    */
-  @Post()
-  async streamAnswer(
+  @Post(":chatId/turns")
+  async createTurn(
+    @Param("chatId") chatId: string,
     @Body() body: unknown,
     @ActiveWorkspaceId() workspaceId: string,
+    @CurrentSession() session: RequestSession,
     @Res() response: StreamingResponse,
   ): Promise<void> {
-    const messages = this.readChatMessages(body);
+    const question = this.readQuestion(body);
     const modelId = this.readModelId(body);
-    const summary = this.readSummary(body);
 
     response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     response.setHeader("Cache-Control", "no-cache, no-transform");
     response.setHeader("Connection", "keep-alive");
     response.flushHeaders();
 
+    let isClosed = false;
+    response.on("close", () => {
+      isClosed = true;
+    });
+
     try {
-      for await (const event of this.chatService.streamAnswer(workspaceId, messages, modelId, summary)) {
+      for await (const event of this.chatService.streamTurn(
+        workspaceId,
+        session.userId,
+        chatId,
+        question,
+        modelId,
+      )) {
         response.write(`data: ${JSON.stringify(event)}\n\n`);
+        if (isClosed) {
+          break;
+        }
       }
       response.write(
         `data: ${JSON.stringify({ type: "done" } satisfies ChatStreamEvent)}\n\n`,

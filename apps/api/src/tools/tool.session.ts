@@ -3,7 +3,7 @@ import type { ChatAnswerEvent, Citation } from "@knowledgestack/shared/chat";
 /**
  * The state that every tool call of one answer shares.
  *
- * The caller builds one session per answer, passes it to each `ToolRegistry.runTool` call, and drains the
+ * The caller builds one session per answer, passes it to each `ToolRegistry.run` call, and drains the
  * frames after each call returns. A caller that draws nothing, such as the MCP server, drops the frames and
  * keeps only the text the tool returns.
  */
