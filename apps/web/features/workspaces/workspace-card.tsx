@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import type { Workspace } from "@knowledgestack/shared/workspaces";
+import type { Workspace } from "@knowledgestack/api-contract/workspaces";
 
 import { Button } from "@/components/button";
 

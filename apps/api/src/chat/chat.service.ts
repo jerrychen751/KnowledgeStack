@@ -13,7 +13,7 @@ import type {
   ContextUsage,
   QueryResult,
   Turn,
-} from "@knowledgestack/shared/chat";
+} from "@knowledgestack/api-contract/chat";
 
 import { AgentLoop } from "./agent.loop.js";
 import { ChatRepository } from "./chat.repository.js";

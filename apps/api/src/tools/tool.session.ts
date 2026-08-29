@@ -1,4 +1,4 @@
-import type { ChatAnswerEvent, Citation } from "@knowledgestack/shared/chat";
+import type { ChatAnswerEvent, Citation } from "@knowledgestack/api-contract/chat";
 
 /**
  * The state that every tool call of one answer shares.

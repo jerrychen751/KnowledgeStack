@@ -7,7 +7,7 @@ import type {
   JoinWorkspaceRequest,
   ListWorkspacesResponse,
   Workspace,
-} from "@knowledgestack/shared/workspaces";
+} from "@knowledgestack/api-contract/workspaces";
 
 import { Button } from "@/components/button";
 import { Label } from "@/components/label";

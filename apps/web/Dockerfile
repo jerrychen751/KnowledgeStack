@@ -13,7 +13,7 @@ FROM base AS development-dependencies
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/package.json
-COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/api-contract/package.json ./packages/api-contract/package.json
 
 RUN --mount=type=cache,id=pnpm-web-development,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @knowledgestack/web...
@@ -23,8 +23,8 @@ FROM development-dependencies AS build
 COPY tsconfig.base.json ./
 COPY apps/web/next.config.mjs apps/web/proxy.ts apps/web/tsconfig.json ./apps/web/
 COPY apps/web/app ./apps/web/app
-COPY packages/shared/tsconfig.json ./packages/shared/
-COPY packages/shared/src ./packages/shared/src
+COPY packages/api-contract/tsconfig.json ./packages/api-contract/
+COPY packages/api-contract/src ./packages/api-contract/src
 
 RUN pnpm --filter @knowledgestack/web... build
 

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 
-import type { CreateDatabaseConnectionRequest } from "@knowledgestack/shared/database-connections";
+import type { CreateDatabaseConnectionRequest } from "@knowledgestack/api-contract/database-connections";
 
 import { Button } from "@/components/button";
 import { Label } from "@/components/label";

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 
-import type { FindAccountResponse } from "@knowledgestack/shared/auth";
+import type { FindAccountResponse } from "@knowledgestack/api-contract/auth";
 
 import { AppConfig } from "../config/app-config.js";
 import { PrismaService } from "../prisma/prisma.service.js";

@@ -16,7 +16,7 @@ Before you write a guard, name the producer of the value and the guarantee that 
 | The `.env` file | `apps/api/src/main.ts:1` | The one entry point of the API loads dotenv before it loads any other module. Never import `dotenv/config` a second time. `apps/api/prisma.config.ts:7` is the exception, because the Prisma CLI starts it as its own process. |
 | The session cookie | `apps/api/src/auth/auth.module.ts:24` and `apps/api/src/auth/session.guard.ts:28` | `SessionGuard` runs under `APP_GUARD` on every route of every module. A route without `@Public()` never runs for a signed-out browser, so `request.session` carries a live session. |
 | The active workspace | `apps/api/src/auth/session.decorator.ts:17` | `ActiveWorkspaceId` answers 403 when the person opened no workspace. A route parameter that carries this decorator is always a workspace id. |
-| The request body | The `read*` methods of the controller, such as `apps/api/src/chat/chat.controller.ts:34` | The controller parses the body and answers 400 on a fault. A service receives typed values and never re-parses `unknown`. |
+| The request body | The request schema of that route, such as `createTurnRequestSchema` in `packages/api-contract/src/chat.ts:98` | The controller reads the body as `unknown`, calls `safeParse`, and answers 400 with the first issue. A service receives typed values and never re-parses `unknown`. |
 | A database row | The Prisma schema in `apps/api/prisma/schema/` | A column the schema types non-null is never null in a read. Never guard a field the generated type already narrows. |
 
 ### When a second check is correct

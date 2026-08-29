@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
-import type { ContextUsage } from "@knowledgestack/shared/chat";
+import type { ContextUsage } from "@knowledgestack/api-contract/chat";
 
 import { Button } from "@/components/button";
 

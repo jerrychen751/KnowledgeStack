@@ -9,12 +9,14 @@ import {
   Post,
 } from "@nestjs/common";
 
-import type { StatusResponse } from "@knowledgestack/shared/http";
-import type {
-  CreateWorkspaceResponse,
-  JoinWorkspaceResponse,
-  ListWorkspacesResponse,
-} from "@knowledgestack/shared/workspaces";
+import type { StatusResponse } from "@knowledgestack/api-contract/http";
+import {
+  createWorkspaceRequestSchema,
+  joinWorkspaceRequestSchema,
+  type CreateWorkspaceResponse,
+  type JoinWorkspaceResponse,
+  type ListWorkspacesResponse,
+} from "@knowledgestack/api-contract/workspaces";
 
 import { CurrentSession } from "../auth/session.decorator.js";
 import { SessionService, type RequestSession } from "../auth/session.service.js";
@@ -27,18 +29,6 @@ export class WorkspacesController {
     private readonly sessionService: SessionService,
     private readonly workspacesService: WorkspacesService,
   ) {}
-
-  private readWorkspaceName(body: unknown): string {
-    const name = (body as { name?: unknown } | null)?.name;
-    if (typeof name !== "string" || name.trim() === "") {
-      throw new BadRequestException("name must be a non-empty string.");
-    }
-    if (name.trim().length > 60) {
-      throw new BadRequestException("name must hold 60 characters or fewer.");
-    }
-
-    return name.trim();
-  }
 
   @Get()
   async listWorkspaces(
@@ -56,9 +46,14 @@ export class WorkspacesController {
     @Body() body: unknown,
     @CurrentSession() session: RequestSession,
   ): Promise<CreateWorkspaceResponse> {
+    const parsed = createWorkspaceRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues[0].message);
+    }
+
     const workspace = await this.workspacesService.createWorkspace(
       session.userId,
-      this.readWorkspaceName(body),
+      parsed.data.name,
     );
     await this.sessionService.selectWorkspace(session.sessionId, workspace.id);
 
@@ -72,12 +67,15 @@ export class WorkspacesController {
     @Body() body: unknown,
     @CurrentSession() session: RequestSession,
   ): Promise<JoinWorkspaceResponse> {
-    const code = (body as { code?: unknown } | null)?.code;
-    if (typeof code !== "string" || code.trim() === "") {
-      throw new BadRequestException("code must be a non-empty string.");
+    const parsed = joinWorkspaceRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues[0].message);
     }
 
-    const workspace = await this.workspacesService.joinWorkspace(session.userId, code);
+    const workspace = await this.workspacesService.joinWorkspace(
+      session.userId,
+      parsed.data.code,
+    );
     await this.sessionService.selectWorkspace(session.sessionId, workspace.id);
 
     return { workspace };

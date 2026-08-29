@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 
 import styles from "./ask.module.css";
-import type { QueryResult } from "@knowledgestack/shared/chat";
+import type { QueryResult } from "@knowledgestack/api-contract/chat";
 
 /** One result set of a database query, under the tool steps of the turn that ran it. The header opens and closes the statement the model wrote, and the table scrolls sideways when the row is wider than the thread. */
 export function QueryResultTable({ result }: { result: QueryResult }): ReactNode {

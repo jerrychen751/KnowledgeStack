@@ -10,14 +10,15 @@ import {
   Res,
 } from "@nestjs/common";
 
-import type {
-  ChatStreamEvent,
-  CreateChatResponse,
-  ListChatsResponse,
-  ListModelsResponse,
-  ReadChatResponse,
-} from "@knowledgestack/shared/chat";
-import type { StatusResponse } from "@knowledgestack/shared/http";
+import {
+  createTurnRequestSchema,
+  type ChatStreamEvent,
+  type CreateChatResponse,
+  type ListChatsResponse,
+  type ListModelsResponse,
+  type ReadChatResponse,
+} from "@knowledgestack/api-contract/chat";
+import type { StatusResponse } from "@knowledgestack/api-contract/http";
 
 import { ActiveWorkspaceId, CurrentSession } from "../auth/session.decorator.js";
 import type { RequestSession } from "../auth/session.service.js";
@@ -84,33 +85,6 @@ export class ChatController {
     return { status: "ok" };
   }
 
-  private readQuestion(body: unknown): string {
-    const question = (body as { question?: unknown } | null)?.question;
-    if (typeof question !== "string" || question.trim() === "") {
-      throw new BadRequestException("question must be a non-empty string.");
-    }
-    // The process limit is REQUEST_BODY_LIMIT, and no model context holds a question this long.
-    if (question.length > 1_000_000) {
-      throw new BadRequestException("question must hold 1000000 characters or fewer.");
-    }
-
-    return question.trim();
-  }
-
-  private readModelId(body: unknown): string {
-    const modelId = (body as { modelId?: unknown } | null)?.modelId;
-    if (modelId === undefined || modelId === null || modelId === "") {
-      return this.chatService.modelIds[0];
-    }
-    if (typeof modelId !== "string" || !this.chatService.modelIds.includes(modelId)) {
-      throw new BadRequestException(
-        `modelId must be one of ${this.chatService.modelIds.join(", ")}.`,
-      );
-    }
-
-    return modelId;
-  }
-
   /**
    * Add one turn to the chat and stream the answer as Server-Sent Events.
    *
@@ -131,8 +105,20 @@ export class ChatController {
     @CurrentSession() session: RequestSession,
     @Res() response: StreamingResponse,
   ): Promise<void> {
-    const question = this.readQuestion(body);
-    const modelId = this.readModelId(body);
+    const parsed = createTurnRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues[0].message);
+    }
+
+    const { question, modelId: requestedModelId } = parsed.data;
+    const modelIds = this.chatService.modelIds;
+    const modelId =
+      requestedModelId === undefined || requestedModelId === null || requestedModelId === ""
+        ? modelIds[0]
+        : requestedModelId;
+    if (!modelIds.includes(modelId)) {
+      throw new BadRequestException(`modelId must be one of ${modelIds.join(", ")}.`);
+    }
 
     response.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     response.setHeader("Cache-Control", "no-cache, no-transform");

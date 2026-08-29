@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
-import type { Citation, QueryResult } from "@knowledgestack/shared/chat";
+import type { Citation, QueryResult } from "@knowledgestack/api-contract/chat";
 
 import { Prisma } from "../generated/prisma/client.js";
 import { PrismaService } from "../prisma/prisma.service.js";

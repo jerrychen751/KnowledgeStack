@@ -1,6 +1,6 @@
 "use client";
 
-import type { ErrorResponse } from "@knowledgestack/shared/http";
+import type { ErrorResponse } from "@knowledgestack/api-contract/http";
 
 /** The API refused the request. `status` is the HTTP status, and `message` is the text the API wrote, the raw body when that text does not parse as JSON, or a fallback that names the status. */
 export class ApiError extends Error {

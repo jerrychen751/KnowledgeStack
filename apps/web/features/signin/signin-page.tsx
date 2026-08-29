@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { StartSignInResponse } from "@knowledgestack/shared/auth";
+import type { StartSignInResponse } from "@knowledgestack/api-contract/auth";
 
 import { Button } from "@/components/button";
 import { requestJson } from "@/lib/api-client";

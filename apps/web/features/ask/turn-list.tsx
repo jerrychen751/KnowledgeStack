@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { AnswerBody } from "./answer-body";
 import styles from "./ask.module.css";
 import { QueryResultTable } from "./query-result-table";
-import type { Turn } from "@knowledgestack/shared/chat";
+import type { Turn } from "@knowledgestack/api-contract/chat";
 
 /** The thread: one article per turn, with the question, the model, the tool steps, the rows of every database query, and the answer. Only the turn at `activeTurnIndex` highlights a citation mark, because the rail shows that turn alone. */
 export function TurnList({

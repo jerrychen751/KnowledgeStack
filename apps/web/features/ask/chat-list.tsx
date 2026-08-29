@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 
-import type { Chat } from "@knowledgestack/shared/chat";
+import type { Chat } from "@knowledgestack/api-contract/chat";
 
 import { formatTime } from "@/lib/format-time";
 

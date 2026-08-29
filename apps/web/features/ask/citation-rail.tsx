@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Label } from "@/components/label";
 
 import styles from "./ask.module.css";
-import type { Turn } from "@knowledgestack/shared/chat";
+import type { Turn } from "@knowledgestack/api-contract/chat";
 
 /** The right rail of the ask page. It lists every chunk the searches of `turn` retrieved, dims the ones the answer did not cite, and opens the full chunk text on a click. `turn` is undefined before the first question. */
 export function CitationRail({

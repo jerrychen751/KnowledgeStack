@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 
-import type { Chat, ListChatsResponse } from "@knowledgestack/shared/chat";
+import type { Chat, ListChatsResponse } from "@knowledgestack/api-contract/chat";
 
 import { RedirectError, requestJson, sendJson } from "@/lib/api-client";
 

@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { getEncoding, type Tiktoken } from "js-tiktoken";
 import OpenAI from "openai";
 
-import type { ContextUsage } from "@knowledgestack/shared/chat";
+import type { ContextUsage } from "@knowledgestack/api-contract/chat";
 import { AppConfig } from "../config/app-config.js";
 
 /** One message the API sends to the model. AgentLoop and CompactionService are its only readers, so it stays out of the shared package. */

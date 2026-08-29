@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { randomInt } from "node:crypto";
 
-import type { Workspace } from "@knowledgestack/shared/workspaces";
+import type { Workspace } from "@knowledgestack/api-contract/workspaces";
 
 import { PrismaService } from "../prisma/prisma.service.js";
 

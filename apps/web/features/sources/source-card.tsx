@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { Source, SourceDocument } from "@knowledgestack/shared/sources";
+import type { Source, SourceDocument } from "@knowledgestack/api-contract/sources";
 
 import { Button } from "@/components/button";
 import { Label } from "@/components/label";

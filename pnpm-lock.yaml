@@ -14,9 +14,9 @@ importers:
 
   apps/api:
     dependencies:
-      '@knowledgestack/shared':
+      '@knowledgestack/api-contract':
         specifier: workspace:*
-        version: link:../../packages/shared
+        version: link:../../packages/api-contract
       '@langchain/textsplitters':
         specifier: ^1.0.1
         version: 1.0.1(@langchain/core@1.2.5(openai@7.4.0(zod@4.4.3)))
@@ -62,6 +62,9 @@ importers:
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@nestjs/cli':
         specifier: ^11.0.23
@@ -87,9 +90,9 @@ importers:
 
   apps/web:
     dependencies:
-      '@knowledgestack/shared':
+      '@knowledgestack/api-contract':
         specifier: workspace:*
-        version: link:../../packages/shared
+        version: link:../../packages/api-contract
       next:
         specifier: ^16.2.10
         version: 16.2.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -113,7 +116,11 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
-  packages/shared:
+  packages/api-contract:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       typescript:
         specifier: ^6.0.3

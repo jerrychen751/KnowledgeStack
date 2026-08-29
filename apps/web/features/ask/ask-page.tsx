@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import type { ListModelsResponse } from "@knowledgestack/shared/chat";
-import type { ListSourcesResponse, Source } from "@knowledgestack/shared/sources";
+import type { ListModelsResponse } from "@knowledgestack/api-contract/chat";
+import type { ListSourcesResponse, Source } from "@knowledgestack/api-contract/sources";
 
 import { requestJson } from "@/lib/api-client";
 

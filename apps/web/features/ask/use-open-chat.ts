@@ -9,7 +9,7 @@ import type {
   CreateTurnRequest,
   ReadChatResponse,
   Turn,
-} from "@knowledgestack/shared/chat";
+} from "@knowledgestack/api-contract/chat";
 
 import { RedirectError, requestJson, sendRequest } from "@/lib/api-client";
 

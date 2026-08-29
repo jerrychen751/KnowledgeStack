@@ -5,7 +5,7 @@ import type {
   CreateDatabaseConnectionResponse,
   DatabaseConnection,
   TestDatabaseConnectionResponse,
-} from "@knowledgestack/shared/database-connections";
+} from "@knowledgestack/api-contract/database-connections";
 
 import { EncryptionService } from "../encryption/encryption.service.js";
 import { Prisma } from "../generated/prisma/client.js";

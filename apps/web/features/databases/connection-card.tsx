@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { DatabaseConnection } from "@knowledgestack/shared/database-connections";
+import type { DatabaseConnection } from "@knowledgestack/api-contract/database-connections";
 
 import { Button } from "@/components/button";
 import { Label } from "@/components/label";

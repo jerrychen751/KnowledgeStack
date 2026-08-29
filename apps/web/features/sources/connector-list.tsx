@@ -4,7 +4,7 @@ import type {
   ReadConnectorStatusResponse,
   Source,
   SourceProvider,
-} from "@knowledgestack/shared/sources";
+} from "@knowledgestack/api-contract/sources";
 
 import { Button } from "@/components/button";
 

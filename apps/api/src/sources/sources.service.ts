@@ -10,7 +10,7 @@ import type {
   Source,
   SourceDocument,
   UploadedFile,
-} from "@knowledgestack/shared/sources";
+} from "@knowledgestack/api-contract/sources";
 
 import { OAuthRegistry } from "../auth/oauth.registry.js";
 import { isDeletableConnector } from "../connectors/connector.types.js";

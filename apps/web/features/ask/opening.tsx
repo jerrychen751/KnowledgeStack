@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import type { Source } from "@knowledgestack/shared/sources";
+import type { Source } from "@knowledgestack/api-contract/sources";
 
 import { Label } from "@/components/label";
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-import type { FindAccountResponse } from "@knowledgestack/shared/auth";
+import type { FindAccountResponse } from "@knowledgestack/api-contract/auth";
 
 import { requestJson, sendJson } from "@/lib/api-client";
 import { workspaceChangedEvent } from "@/lib/workspace-changed-event";

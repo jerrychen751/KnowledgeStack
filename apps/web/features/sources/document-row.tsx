@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { SourceDocument } from "@knowledgestack/shared/sources";
+import type { SourceDocument } from "@knowledgestack/api-contract/sources";
 
 import { formatTime } from "@/lib/format-time";
 import styles from "./sources.module.css";

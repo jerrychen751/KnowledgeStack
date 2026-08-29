@@ -8,7 +8,7 @@ import type {
   DatabaseConnection,
   ListDatabaseConnectionsResponse,
   TestDatabaseConnectionResponse,
-} from "@knowledgestack/shared/database-connections";
+} from "@knowledgestack/api-contract/database-connections";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageLayout } from "@/components/page-layout";

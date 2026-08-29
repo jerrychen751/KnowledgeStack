@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import OpenAI from "openai";
 
-import type { ChatAnswerEvent } from "@knowledgestack/shared/chat";
+import type { ChatAnswerEvent } from "@knowledgestack/api-contract/chat";
 import { AppConfig } from "../config/app-config.js";
 import { ToolRegistry } from "../tools/tool.registry.js";
 import { ToolSession } from "../tools/tool.session.js";

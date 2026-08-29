@@ -12,7 +12,7 @@ import type {
   SourceDocument,
   SourceProvider,
   StartAuthorizationResponse,
-} from "@knowledgestack/shared/sources";
+} from "@knowledgestack/api-contract/sources";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageLayout } from "@/components/page-layout";

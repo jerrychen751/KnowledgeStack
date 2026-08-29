@@ -12,21 +12,22 @@ import {
   Query,
   Redirect,
 } from "@nestjs/common";
+import { z } from "zod";
 
-import type { StatusResponse } from "@knowledgestack/shared/http";
-import type {
-  ListDocumentsResponse,
-  ListSourcesResponse,
-  ReadConnectorStatusResponse,
-  SaveUploadsResponse,
-  StartAuthorizationResponse,
-  UploadedFile,
-} from "@knowledgestack/shared/sources";
+import type { StatusResponse } from "@knowledgestack/api-contract/http";
+import {
+  saveUploadsRequestSchema,
+  sourceProviderSchema,
+  type ListDocumentsResponse,
+  type ListSourcesResponse,
+  type ReadConnectorStatusResponse,
+  type SaveUploadsResponse,
+  type StartAuthorizationResponse,
+} from "@knowledgestack/api-contract/sources";
 
 import { Public } from "../auth/public.decorator.js";
 import { ActiveWorkspaceId } from "../auth/session.decorator.js";
 import { AppConfig } from "../config/app-config.js";
-import { SourceProvider } from "../generated/prisma/enums.js";
 
 import { SourcesService } from "./sources.service.js";
 
@@ -57,38 +58,19 @@ export class SourcesController {
     };
   }
 
-  private readUploadedFiles(body: unknown): UploadedFile[] {
-    const files = (body as { files?: unknown } | null)?.files;
-    if (!Array.isArray(files) || files.length === 0) {
-      throw new BadRequestException("files must be a non-empty array.");
-    }
-    if (files.length > 20) {
-      throw new BadRequestException("files must hold 20 entries or fewer.");
-    }
-
-    return files.map((file) => {
-      const name = (file as { name?: unknown }).name;
-      const text = (file as { text?: unknown }).text;
-      if (typeof name !== "string" || typeof text !== "string") {
-        throw new BadRequestException("Each file must carry a name string and a text string.");
-      }
-      if (text.length > 1_000_000) {
-        throw new BadRequestException(`"${name}" must hold 1000000 characters or fewer.`);
-      }
-
-      return { name, text };
-    });
-  }
-
   /** Store the uploaded files and sync them. The response arrives after the whole sync pass finishes. */
   @Post("uploads")
   async saveUploads(
     @Body() body: unknown,
     @ActiveWorkspaceId() workspaceId: string,
   ): Promise<SaveUploadsResponse> {
-    const files = this.readUploadedFiles(body);
+    const parsed = saveUploadsRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues[0].message);
+    }
+
     try {
-      return await this.sourcesService.saveUploads(workspaceId, files);
+      return await this.sourcesService.saveUploads(workspaceId, parsed.data.files);
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
@@ -157,15 +139,13 @@ export class SourcesController {
     @Param("provider") provider: string,
     @ActiveWorkspaceId() workspaceId: string,
   ): StartAuthorizationResponse {
-    if (!Object.hasOwn(SourceProvider, provider)) {
+    const parsed = sourceProviderSchema.safeParse(provider);
+    if (!parsed.success) {
       throw new BadRequestException(`"${provider}" is not a source provider.`);
     }
 
     return {
-      authorizeUrl: this.sourcesService.startAuthorization(
-        workspaceId,
-        provider as SourceProvider,
-      ),
+      authorizeUrl: this.sourcesService.startAuthorization(workspaceId, parsed.data),
     };
   }
 
@@ -181,11 +161,23 @@ export class SourcesController {
   @Public()
   @Get("oauth/callback")
   @Redirect()
-  async completeAuthorization(
-    @Query("code") code: string | undefined,
-    @Query("state") state: string | undefined,
-    @Query("error") error: string | undefined,
-  ) {
+  async completeAuthorization(@Query() query: unknown) {
+    const parsed = z
+      .object({
+        code: z.string({ error: "code must be a string." }).optional(),
+        state: z.string({ error: "state must be a string." }).optional(),
+        error: z.string({ error: "error must be a string." }).optional(),
+      })
+      .safeParse(query);
+    if (!parsed.success) {
+      return {
+        url: `${this.appConfig.webAppUrl}/sources?error=${encodeURIComponent(
+          parsed.error.issues[0].message,
+        )}`,
+      };
+    }
+
+    const { code, state, error } = parsed.data;
     if (error !== undefined) {
       return {
         url: `${this.appConfig.webAppUrl}/sources?error=${encodeURIComponent(error)}`,

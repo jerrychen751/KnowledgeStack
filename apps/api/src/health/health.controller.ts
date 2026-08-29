@@ -1,6 +1,6 @@
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
 
-import type { StatusResponse } from "@knowledgestack/shared/http";
+import type { StatusResponse } from "@knowledgestack/api-contract/http";
 
 import { PrismaService } from "../prisma/prisma.service.js";
 

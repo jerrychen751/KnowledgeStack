@@ -9,9 +9,10 @@ import {
   Res,
   ServiceUnavailableException,
 } from "@nestjs/common";
+import { z } from "zod";
 
-import type { FindAccountResponse, StartSignInResponse } from "@knowledgestack/shared/auth";
-import type { StatusResponse } from "@knowledgestack/shared/http";
+import type { FindAccountResponse, StartSignInResponse } from "@knowledgestack/api-contract/auth";
+import type { StatusResponse } from "@knowledgestack/api-contract/http";
 
 import { AppConfig } from "../config/app-config.js";
 
@@ -95,14 +96,30 @@ export class AuthController {
   @Public()
   @Get("google/callback")
   async completeSignIn(
-    @Query("code") code: string | undefined,
-    @Query("state") state: string | undefined,
-    @Query("error") error: string | undefined,
+    @Query() query: unknown,
     @Req() request: CookieRequest,
     @Res() response: CookieResponse,
   ): Promise<void> {
     const startedState = readCookie(request.headers.cookie, OAUTH_STATE_COOKIE_NAME);
     response.clearCookie(OAUTH_STATE_COOKIE_NAME, this.buildCookieOptions());
+
+    const parsed = z
+      .object({
+        code: z.string({ error: "code must be a string." }).optional(),
+        state: z.string({ error: "state must be a string." }).optional(),
+        error: z.string({ error: "error must be a string." }).optional(),
+      })
+      .safeParse(query);
+    if (!parsed.success) {
+      response.redirect(
+        `${this.appConfig.webAppUrl}/signin?error=${encodeURIComponent(
+          parsed.error.issues[0].message,
+        )}`,
+      );
+      return;
+    }
+
+    const { code, state, error } = parsed.data;
 
     if (error !== undefined) {
       response.redirect(
