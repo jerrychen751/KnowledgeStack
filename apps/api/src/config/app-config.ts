@@ -5,6 +5,7 @@ import { Injectable, LOG_LEVELS, type LogLevel } from "@nestjs/common";
 export class AppConfig {
   // Identifies this API deployment in startup logs with letters, numbers, periods, underscores, or hyphens. Defaults to "development".
   readonly deploymentName: string;
+  readonly encryptionKey: Buffer;
   // Names the host where the API accepts connections, such as "0.0.0.0". Defaults to "127.0.0.1".
   readonly host: string;
   // Sets the minimum Nest log level, such as "warn". Defaults to "verbose".
@@ -27,6 +28,17 @@ export class AppConfig {
       );
     }
     this.deploymentName = deploymentName;
+
+    const encodedEncryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+    if (!encodedEncryptionKey) {
+      throw new Error("TOKEN_ENCRYPTION_KEY must be set.");
+    }
+    this.encryptionKey = Buffer.from(encodedEncryptionKey, "base64url");
+    if (this.encryptionKey.byteLength !== 32) {
+      throw new Error(
+        `TOKEN_ENCRYPTION_KEY must decode to 32 bytes for AES-256, but it decoded to ${this.encryptionKey.byteLength}.`,
+      );
+    }
 
     this.host = process.env.HOST || "127.0.0.1";
 

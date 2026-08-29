@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 
 import { AppConfigModule } from "../config/app-config.module.js";
+import { EncryptionModule } from "../encryption/encryption.module.js";
 import { PrismaModule } from "../prisma/prisma.module.js";
 
 import { AuthController } from "./auth.controller.js";
@@ -12,7 +13,7 @@ import { SessionService } from "./session.service.js";
 import { TokenService } from "./token.service.js";
 
 @Module({
-  imports: [AppConfigModule, PrismaModule],
+  imports: [AppConfigModule, EncryptionModule, PrismaModule],
   controllers: [AuthController],
   providers: [
     AuthService,
@@ -26,4 +27,4 @@ import { TokenService } from "./token.service.js";
 })
 export class AuthModule {}
 
-// SyncModule imports this module and AppModule imports SyncModule, so Nest constructs TokenService at boot. Every environment that starts the API must set TOKEN_ENCRYPTION_KEY or the process exits.
+// AppModule imports AppConfigModule directly, so Nest constructs AppConfig at boot. Every environment that starts the API must set TOKEN_ENCRYPTION_KEY or the process exits.

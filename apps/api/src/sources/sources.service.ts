@@ -16,6 +16,7 @@ import { OAuthRegistry } from "../auth/oauth.registry.js";
 import { isDeletableConnector } from "../connectors/connector.types.js";
 import { isOAuthProvider, type OAuthProviderName } from "../auth/oauth.types.js";
 import { TokenService } from "../auth/token.service.js";
+import { EncryptionService } from "../encryption/encryption.service.js";
 import { SourceProvider } from "../generated/prisma/enums.js";
 import { ConnectorResolver } from "../sync/connector.resolver.js";
 import { SyncService } from "../sync/sync.service.js";
@@ -47,6 +48,7 @@ export class SourcesService {
 
   constructor(
     private readonly connectorResolver: ConnectorResolver,
+    private readonly encryptionService: EncryptionService,
     private readonly oauthRegistry: OAuthRegistry,
     private readonly sourceRepository: SourceRepository,
     private readonly syncService: SyncService,
@@ -278,11 +280,11 @@ export class SourcesService {
         externalDisplayName: grant.credential.externalDisplayName,
         externalUserId: grant.credential.externalUserId,
         externalUserEmail: grant.credential.externalUserEmail,
-        encryptedAccessToken: this.tokenService.encrypt(grant.tokens.accessToken),
+        encryptedAccessToken: this.encryptionService.encrypt(grant.tokens.accessToken),
         encryptedRefreshToken:
           grant.tokens.refreshToken === null
             ? null
-            : this.tokenService.encrypt(grant.tokens.refreshToken),
+            : this.encryptionService.encrypt(grant.tokens.refreshToken),
         expiresAt: grant.tokens.expiresAt,
         scope: grant.tokens.scope,
       },
