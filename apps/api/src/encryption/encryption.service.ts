@@ -11,13 +11,13 @@ import { AppConfig } from "../config/app-config.js";
  */
 @Injectable()
 export class EncryptionService {
-  private readonly encryptionKey: Buffer;
-  private readonly encryptionKeyId: string;
+  private readonly key: Buffer;
+  private readonly keyId: string;
 
   constructor(appConfig: AppConfig) {
-    this.encryptionKey = appConfig.encryptionKey;
-    this.encryptionKeyId = createHash("sha256")
-      .update(this.encryptionKey)
+    this.key = appConfig.encryptionKey;
+    this.keyId = createHash("sha256")
+      .update(this.key)
       .digest("base64url");
   }
 
@@ -30,14 +30,14 @@ export class EncryptionService {
     const initializationVector = randomBytes(12);
     const cipher = createCipheriv(
       "aes-256-gcm",
-      this.encryptionKey,
+      this.key,
       initializationVector,
     );
     const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
 
     return [
       "v1",
-      this.encryptionKeyId,
+      this.keyId,
       initializationVector,
       cipher.getAuthTag(),
       ciphertext,
@@ -57,7 +57,7 @@ export class EncryptionService {
         "An encrypted value must have the format v1.keyId.iv.authTag.ciphertext",
       );
     }
-    if (parts[1] !== this.encryptionKeyId) {
+    if (parts[1] !== this.keyId) {
       throw new Error(
         `The key id ${parts[1]} in the value does not match TOKEN_ENCRYPTION_KEY`,
       );
@@ -68,7 +68,7 @@ export class EncryptionService {
       .map((part) => Buffer.from(part, "base64url"));
     const decipher = createDecipheriv(
       "aes-256-gcm",
-      this.encryptionKey,
+      this.key,
       initializationVector,
     );
     decipher.setAuthTag(authenticationTag);
