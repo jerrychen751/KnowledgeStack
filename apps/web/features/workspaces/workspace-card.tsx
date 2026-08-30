@@ -7,19 +7,25 @@ import { Button } from "@/components/button";
 
 import styles from "./workspaces.module.css";
 
-/** One workspace in the list: its counts, the Open button, and the join code a member needs. The card of the open workspace shows a badge in place of Open, and links to the two pages that read it. */
+/** One workspace in the list: its counts, the Open button, the join code a member needs, and Leave. The card of the open workspace shows a badge in place of Open, and links to the two pages that read it. `armedId` names the workspace whose next click leaves it, and is null when nothing is armed. Leaving takes two clicks, because it revokes every MCP token this person made for that workspace. */
 export function WorkspaceCard({
   workspace,
   isActive,
   isBusy,
+  armedId,
+  onArm,
   onOpen,
   onCopyCode,
+  onLeave,
 }: {
   workspace: Workspace;
   isActive: boolean;
   isBusy: boolean;
+  armedId: string | null;
+  onArm: (id: string | null) => void;
   onOpen: () => void;
   onCopyCode: () => void;
+  onLeave: () => void;
 }): ReactNode {
   return (
     <li className={`${styles.card} ${isActive ? styles.cardActive : ""}`}>
@@ -35,13 +41,31 @@ export function WorkspaceCard({
             </span>
           </p>
         </div>
-        {isActive ? (
-          <span className={styles.openBadge}>Open</span>
-        ) : (
-          <Button disabled={isBusy} onClick={onOpen}>
-            Open
-          </Button>
-        )}
+        <div className={styles.cardActions}>
+          {armedId === workspace.id ? (
+            <>
+              <Button disabled={isBusy} onClick={onLeave}>
+                Leave for good
+              </Button>
+              <Button disabled={isBusy} onClick={() => onArm(null)}>
+                Stay
+              </Button>
+            </>
+          ) : (
+            <>
+              {isActive ? (
+                <span className={styles.openBadge}>Open</span>
+              ) : (
+                <Button disabled={isBusy} onClick={onOpen}>
+                  Open
+                </Button>
+              )}
+              <Button disabled={isBusy} onClick={() => onArm(workspace.id)}>
+                Leave
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className={styles.cardFoot}>

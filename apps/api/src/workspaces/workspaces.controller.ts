@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   NotFoundException,
@@ -79,6 +80,18 @@ export class WorkspacesController {
     await this.sessionService.selectWorkspace(session.sessionId, workspace.id);
 
     return { workspace };
+  }
+
+  /** Leave the workspace. Every MCP token this person created for it stops answering, because Postgres deletes each one with the membership. */
+  @Delete(":workspaceId/membership")
+  @HttpCode(200)
+  async leaveWorkspace(
+    @Param("workspaceId") workspaceId: string,
+    @CurrentSession() session: RequestSession,
+  ): Promise<StatusResponse> {
+    await this.workspacesService.leaveWorkspace(session.userId, workspaceId);
+
+    return { status: "ok" };
   }
 
   /** Open another workspace of this person in this browser. Every other browser keeps the workspace it reads. */

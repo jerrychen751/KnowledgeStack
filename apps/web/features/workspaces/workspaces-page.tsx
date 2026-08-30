@@ -26,6 +26,7 @@ export function WorkspacesPage(): ReactNode {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState("");
   const [joinCode, setJoinCode] = useState("");
+  const [armedId, setArmedId] = useState<string | null>(null);
   const { notice, setNotice, busyMessage, isBusy, reportFailure, runRequest } = usePageRequest();
 
   const loadWorkspaces = useCallback(async () => {
@@ -86,6 +87,8 @@ export function WorkspacesPage(): ReactNode {
                 workspace={workspace}
                 isActive={workspace.id === activeWorkspaceId}
                 isBusy={isBusy}
+                armedId={armedId}
+                onArm={setArmedId}
                 onOpen={() =>
                   void write(
                     "Opening the workspace",
@@ -94,6 +97,13 @@ export function WorkspacesPage(): ReactNode {
                   )
                 }
                 onCopyCode={() => void copyJoinCode(workspace.joinCode)}
+                onLeave={() =>
+                  void write(
+                    "Leaving the workspace",
+                    () => sendJson(`/api/workspaces/${workspace.id}/membership`, "DELETE"),
+                    `You left ${workspace.name}. Every MCP token you made for it is revoked.`,
+                  ).then(() => setArmedId(null))
+                }
               />
             ))}
           </ul>

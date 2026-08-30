@@ -45,6 +45,13 @@
   font-size: 0.8125rem;
 }
 
+.cardActions {
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .openBadge {
   flex: none;
   padding: 0.3125rem 0.625rem;

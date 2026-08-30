@@ -112,6 +112,26 @@ export class WorkspacesService {
     return workspace;
   }
 
+  /**
+   * Remove the person from the workspace.
+   *
+   * Postgres deletes every MCP token that hangs off this membership, so a client the person registered stops
+   * answering at once. The chats and the documents stay, because they belong to the workspace. Every browser
+   * of this person that reads the workspace loses it on the next request, because SessionService.findSession
+   * reads the membership again and answers with a null active workspace.
+   *
+   * The last member may leave. Nothing then reaches the workspace except the join code, which the person
+   * reads on this page before they go.
+   */
+  async leaveWorkspace(userId: string, workspaceId: string): Promise<void> {
+    const removed = await this.prisma.workspaceMembership.deleteMany({
+      where: { workspaceId, userId },
+    });
+    if (removed.count === 0) {
+      throw new NotFoundException("The workspace does not exist.");
+    }
+  }
+
   async isMember(userId: string, workspaceId: string): Promise<boolean> {
     const membership = await this.prisma.workspaceMembership.findUnique({
       where: { workspaceId_userId: { workspaceId, userId } },
