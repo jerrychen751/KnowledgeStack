@@ -286,10 +286,26 @@
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
-  margin-top: 0.875rem;
+  margin-top: 0.3125rem;
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.75rem;
-  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.step:first-of-type {
+  margin-top: 0.875rem;
+}
+
+.step::before {
+  flex: none;
+  align-self: baseline;
+  width: 0.3125rem;
+  height: 0.3125rem;
+  margin-bottom: 0.22em;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
 }
 
 .stepLabel {
