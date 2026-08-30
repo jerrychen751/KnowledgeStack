@@ -51,6 +51,7 @@ export default function RootLayout({ children }: { children: ReactNode }): React
                 { href: "/", label: "Ask" },
                 { href: "/sources", label: "Sources" },
                 { href: "/databases", label: "Databases" },
+                { href: "/settings", label: "Settings" },
               ]}
             />
             <AccountMenu />

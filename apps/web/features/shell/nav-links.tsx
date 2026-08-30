@@ -16,8 +16,11 @@ export function NavLinks({ pages }: { pages: { href: string; label: string }[] }
   return (
     <nav className={styles.nav}>
       {pages.map((page) => {
+        // Settings holds nested pages, so a link stays current while the browser reads any page under it.
         const isActive =
-          page.href === "/" ? pathname === "/" || pathname.startsWith("/ask/") : pathname === page.href;
+          page.href === "/"
+            ? pathname === "/" || pathname.startsWith("/ask/")
+            : pathname === page.href || pathname.startsWith(`${page.href}/`);
 
         return (
           <Link

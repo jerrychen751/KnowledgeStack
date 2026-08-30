@@ -1,0 +1,58 @@
+/* The nav owns its own vertical padding, so it starts level with the title PageLayout draws in the right column. */
+.layout {
+  display: grid;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  max-width: 76rem;
+  margin: 0 auto;
+}
+
+.nav {
+  padding: 2.5rem 0 5rem 2rem;
+}
+
+.navTitle {
+  font-size: 1.375rem;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+}
+
+.group {
+  margin-top: 1.75rem;
+}
+
+.groupPages {
+  margin-top: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.navLink {
+  display: block;
+  padding: 0.3125rem 0.625rem;
+  margin-left: -0.625rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.navLinkActive {
+  background: var(--surface-sunken);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+@media (max-width: 46rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nav {
+    padding: 2rem 1.25rem 0;
+  }
+}
