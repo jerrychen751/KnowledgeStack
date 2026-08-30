@@ -775,15 +775,35 @@
 }
 
 .querySql {
-  padding: 0.75rem 0.875rem;
+  margin: 0;
+  padding: 0.875rem 1rem;
   border-bottom: 1px solid var(--rule);
+  background: var(--surface-sunken);
   overflow-x: auto;
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 0.75rem;
-  line-height: 1.6;
+  font-size: 0.8125rem;
+  line-height: 1.55;
   color: var(--ink-soft);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.querySqlKeyword {
+  font-weight: 500;
+  color: var(--signal);
+}
+
+.querySqlString {
+  color: var(--warn);
+}
+
+.querySqlNumber {
+  color: var(--ink);
+}
+
+.querySqlComment {
+  color: var(--ink-faint);
+  font-style: italic;
 }
 
 .queryEmpty {
@@ -826,6 +846,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--ink);
+}
+
+.queryTable th:not(:last-child),
+.queryTable td:not(:last-child) {
+  border-right: 1px solid var(--rule);
 }
 
 .queryTable tr:last-child td {
