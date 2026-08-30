@@ -43,6 +43,11 @@ export class ToolRegistry implements OnModuleInit {
     return [...this.byName.keys()];
   }
 
+  /** Every tool declaration, in registration order. */
+  get definitions(): ToolDefinition[] {
+    return [...this.byName.values()].map((tool) => tool.definition);
+  }
+
   /** Whether a method declares this tool. The model can name a tool that no method declares. */
   has(name: string): boolean {
     return this.byName.has(name);

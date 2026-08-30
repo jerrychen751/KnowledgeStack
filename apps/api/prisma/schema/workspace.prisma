@@ -46,6 +46,7 @@ model WorkspaceMembership {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   userId      String    @map("user_id")
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mcpTokens   McpToken[]
 
   @@unique([workspaceId, userId])
   @@index([userId])
@@ -68,4 +69,25 @@ model UserSession {
 
   @@index([userId])
   @@map("user_sessions")
+}
+
+// One MCP client. The client sends the token as a bearer credential and this row keeps only its SHA-256.
+// The token belongs to the membership that created it, not to the person and the workspace separately, so
+// leaving the workspace deletes it. A person who rejoins gets a new membership, which authorizes no token
+// the old one issued. The workspace is fixed through that membership and never moves, unlike
+// UserSession.activeWorkspaceId which the browser changes.
+model McpToken {
+  id         String    @id @default(cuid())
+  name       String
+  hash       String    @unique
+  expiresAt  DateTime  @map("expires_at")
+  // Null until an MCP client sends its first message with this token, which is its handshake and not a tool call
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  membershipId String              @map("membership_id")
+  membership   WorkspaceMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@index([membershipId])
+  @@map("mcp_tokens")
 }

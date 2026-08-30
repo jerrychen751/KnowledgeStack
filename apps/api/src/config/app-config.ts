@@ -10,6 +10,8 @@ export class AppConfig {
   readonly host: string;
   // Sets the minimum Nest log level, such as "warn". Defaults to "verbose".
   readonly logLevel: LogLevel;
+  // The address an MCP client posts to, such as "https://api.example.com/mcp". The browser cannot derive it, because the web app answers on another port.
+  readonly mcpPublicUrl: string;
   readonly openaiApiKey: string;
   // Sets the TCP port from 1 through 65535. Defaults to 3001.
   readonly port: number;
@@ -93,6 +95,18 @@ export class AppConfig {
       );
     }
     this.webAppUrl = webAppUrl.origin;
+
+    const configuredMcpPublicUrl = process.env.MCP_PUBLIC_URL || `http://127.0.0.1:${this.port}`;
+    let mcpPublicUrl: URL;
+    try {
+      mcpPublicUrl = new URL(configuredMcpPublicUrl);
+    } catch {
+      throw new Error("MCP_PUBLIC_URL must be a valid HTTP or HTTPS origin.");
+    }
+    if (mcpPublicUrl.protocol !== "http:" && mcpPublicUrl.protocol !== "https:") {
+      throw new Error("MCP_PUBLIC_URL must be a valid HTTP or HTTPS origin.");
+    }
+    this.mcpPublicUrl = `${mcpPublicUrl.origin}/mcp`;
 
     this.googleRedirectUri = `${this.webAppUrl}/api/auth/google/callback`;
     this.sourceRedirectUri = `${this.webAppUrl}/api/sources/oauth/callback`;

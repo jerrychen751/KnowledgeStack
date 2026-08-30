@@ -6,7 +6,7 @@
  * embeds the query with the chunk embedding model, then ranks every chunk of the workspace by cosine
  * distance in Postgres. DatabaseTools holds list_databases, list_tables, describe_tables and execute_sql, which reach the business
  * databases the workspace registered through DatabaseConnectionsModule. The chat agent reaches a tool
- * through the registry, and the MCP server will report the same declarations and reach the same methods.
+ * through the registry, and the MCP server reports the same declarations and reaches the same methods.
  */
 
 import { Module } from "@nestjs/common";
