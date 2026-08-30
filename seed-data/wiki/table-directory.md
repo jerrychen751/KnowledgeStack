@@ -1,13 +1,18 @@
 # Table directory
 
-Owner: Data Governance
+Owner: Data Governance (Marta Kowalczyk)
 Source: Vantera ERP, nightly extract
 Last reviewed: 2026-06-30
 
-The extract holds 24 tables. No table and no column carries a database comment,
-because the nightly load drops them. This wiki is the only documentation.
+Start here.
 
-Read the page named in the last column before you write a query against a table.
+The extract holds 24 tables. No table and no column carries a database comment,
+because the nightly load drops them along with the constraints. That means the wiki
+you are reading is the only documentation that exists. There is no fallback, no data
+dictionary in Confluence, no comment to inspect in the catalog.
+
+So: read the page named in the last column before you write a query against a table.
+Every one of those pages exists because somebody got a number wrong first.
 
 ## Reference tables
 
@@ -60,20 +65,27 @@ Read the page named in the last column before you write a query against a table.
 
 ## The extract carries no foreign keys
 
-The ERP enforces referential integrity upstream. The nightly load drops every
-constraint so it can write the tables in parallel, and it recreates only the indexes.
-`information_schema` therefore exposes no join path at all. Every join path in this
-wiki is a rule that the data obeys, not a rule the database enforces.
+Worth its own section, because it surprises everyone who connects a BI tool and waits
+for the relationships to appear.
 
-Three consequences follow.
+The ERP enforces referential integrity upstream, properly. The nightly load then
+drops every constraint so it can write the tables in parallel, and it recreates only
+the indexes. `information_schema` therefore exposes no join path at all, and any tool
+that offers to infer your model from the database will offer you nothing.
+
+Every join path in this wiki is a rule that the data obeys, not a rule the database
+enforces. Three consequences follow, and all three are live in the data today.
 
 - A join column can hold a value that the parent table does not hold. This is real in
   `ord_hdr_hist.cust_no`. See [Order history archive](order-history-archive.md).
 - A cascade delete never happens. A deleted customer keeps its orders.
 - A query planner cannot use a key to remove a redundant join, so an unfiltered join
-  to `cust_addr` multiplies rows. See [Customer master](customer-master.md).
+  to `cust_addr` multiplies rows rather than being optimized away. See
+  [Customer master](customer-master.md).
 
 ## The three date columns that are easy to confuse
+
+There are more than three, which is part of the problem.
 
 | Column | Meaning | Use it for |
 |---|---|---|
@@ -82,6 +94,9 @@ Three consequences follow.
 | `ord_ln.sched_dt` | the day Vantera promised the line | delivery performance |
 | `ord_ln.shp_dt` | the day the line left the dock | shipment reporting |
 | `invc_hdr.invc_dt` | the day Finance billed the shipment | invoiced revenue |
+
+If a number is close to right but not right, and it is a period figure, the date
+column is the first thing to check.
 
 ## Related pages
 

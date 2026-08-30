@@ -1,11 +1,14 @@
 # Part numbering and the part master (part_mstr, pkg_mstr, part_xref)
 
-Owner: Product Line Marketing
+Owner: Product Line Marketing (Sanjay Mehta)
 Last reviewed: 2026-06-30
 
-`part_mstr` holds one row per orderable part number. A part number identifies a
-die, a package and a shipping medium together, so the same silicon appears under
-several part numbers.
+`part_mstr` holds one row per orderable part number.
+
+The thing to internalise early: a part number identifies a die, a package and a
+shipping medium all at once. So the same silicon shows up under several part numbers,
+and "how many parts did we sell" is a question with at least three defensible
+answers.
 
 ## Reading a part number
 
@@ -22,14 +25,18 @@ Prefixes are `VA` amplifiers, `VP` power, `VM` microcontrollers and processors,
 `VS` sensors.
 
 A trailing `R` on the suffix means tape and reel. The same device in tube or tray
-drops the `R`. `VP5433DDA` and `VP5433DDAR` are the same silicon in the same
-package. Only the reel version is stocked.
+drops the `R`. So `VP5433DDA` and `VP5433DDAR` are the same silicon in the same
+package, differing only in how it arrives. In practice only the reel version is
+stocked, so this matters less than it looks like it should.
 
 ## Family code (fam_cd)
 
-Two digits. `fam_cd` is the reporting hierarchy, and it is what Finance groups by.
-It does not always agree with the part number prefix, because the prefix is a
-marketing decision and `fam_cd` is a cost-center decision.
+Two digits. `fam_cd` is the reporting hierarchy, and it is what Finance groups by on
+every deck.
+
+Do not assume it agrees with the part number prefix. It usually does and sometimes
+does not, because the prefix is a marketing decision and `fam_cd` is a cost-center
+decision, and the two organisations have never been obliged to agree.
 
 | fam_cd | Product family |
 |---|---|
@@ -42,14 +49,15 @@ marketing decision and `fam_cd` is a cost-center decision.
 | `66` | Clocks and timing |
 | `72` | Sensing products |
 
-There is no lookup table for `fam_cd` in the extract, and `code_lkp` does not carry
-it either. This page is the mapping.
+There is no lookup table for `fam_cd` anywhere in the extract, and `code_lkp` does
+not carry it either. This page is the mapping. If you need family names in a report,
+this table is where they come from, and there is no way around that today.
 
 ## Package code (pkg_cd)
 
 `pkg_cd` repeats the suffix of the part number as its own column, and it joins to
 `pkg_mstr.pkg_cd`. `pkg_mstr` is the one code table the extract does carry for
-packages.
+packages, so enjoy it.
 
 | pkg_mstr column | Meaning |
 |---|---|
@@ -59,23 +67,30 @@ packages.
 | `mnt_typ_cd` | `SMT` surface mount or `THT` through hole |
 
 `part_mstr.moq` normally equals `pkg_mstr.reel_qty` for that package, because the
-minimum order is one reel. The two columns are stored separately and a product line
-can override `moq`, so they do not always agree.
+minimum order is one reel. Normally, not always: the two columns are stored
+separately and a product line can override `moq`. Do not treat one as derivable from
+the other.
 
 ## Lead time and minimum order quantity
 
 `lt_wks` is the quoted lead time in weeks, from order to ship. Values between 8 and
-34 weeks are normal for this business, and a long lead time is not a defect. The
-order entry screen fills `ord_ln.sched_dt` with `ord_dt + lt_wks * 7`.
+34 weeks are normal for this business. A long lead time is not a data defect and does
+not need chasing.
+
+The order entry screen fills `ord_ln.sched_dt` with `ord_dt + lt_wks * 7`, which is
+worth knowing when a promised date looks suspiciously round.
 
 `moq` is the minimum order quantity in pieces, set by the reel or tray size for the
-package. It is not a customer-specific value.
+package. It is a property of the part, not a customer-specific value.
 
 ## Standard cost (std_cost)
 
 `std_cost` is the manufacturing cost of one piece, in hundredths of a cent, the same
-scale as `ord_ln.unit_px`. It is a standard cost set once a year by Cost Accounting,
-not an actual cost, and it does not move with yield.
+scale as `ord_ln.unit_px`.
+
+Two caveats that Cost Accounting will raise if you skip them: it is a standard cost
+set once a year, not an actual cost, and it does not move with yield. So a family
+whose yield collapsed in March still shows last year's cost.
 
 Gross margin on one order line, in hundredths of a cent:
 
@@ -93,12 +108,13 @@ Divide by 10000 for dollars. See [Amounts and units](amounts-and-units.md).
 `rohs_flg` is `Y` when the part meets RoHS. A small number of legacy parts carry `N`
 and can only be sold into exempt applications.
 
-`eol_flg` is `Y` when the part is end of life. An end-of-life part still accepts
-last-time-buy orders, so `eol_flg = 'Y'` rows still appear in recent orders. Do not
+`eol_flg` is `Y` when the part is end of life. This one is easy to misuse: an
+end-of-life part still accepts last-time-buy orders, and those orders are often
+large, so `eol_flg = 'Y'` rows appear in recent orders quite legitimately. Do not
 treat the flag as a filter for historical reporting.
 
-`succ_part_no` names the part that replaces an end-of-life part, and it is `NULL`
-on every part that is not end of life. It points at a row in `part_mstr`, so a
+`succ_part_no` names the part that replaces an end-of-life part, and it is `NULL` on
+every part that is not end of life. It points at another row in `part_mstr`, so a
 question about a replacement is a self-join:
 
 ```sql
@@ -118,9 +134,10 @@ Three characters.
 | `AEC` | AEC-Q100 automotive qualification. |
 | `MIL` | Military temperature range screening. |
 
-An automotive customer can only buy `AEC` parts for a vehicle programme. The extract
-does not record what a customer did with a part, so `qual_cd` describes the part and
-never the order.
+An automotive customer can only buy `AEC` parts for a vehicle programme, which makes
+this look like a useful filter for automotive revenue. It is not. The extract does
+not record what a customer actually did with a part, so `qual_cd` describes the part
+and never the order.
 
 ## Manufacturing site (fab_site_cd)
 
@@ -132,25 +149,28 @@ never the order.
 | `ME02` | South Portland, Maine |
 | `AI03` | Aizu, Japan |
 
-`part_mstr.fab_site_cd` is the fab. Assembly and test happen elsewhere, and
-`lot_mstr.asy_site_cd` names that site per lot. See
-[Inventory and lots](inventory-and-lots.md).
+Keep the two site columns straight. `part_mstr.fab_site_cd` is the fab. Assembly and
+test happen somewhere else entirely, and `lot_mstr.asy_site_cd` names that site per
+lot. See [Inventory and lots](inventory-and-lots.md).
 
 ## Customer part numbers (part_xref)
 
-A customer orders under its own part number, and `part_xref` maps that number to a
-Vantera part number. The key is `cust_id` plus `cust_part_no`.
+Customers order under their own part numbers, and `part_xref` maps those to Vantera
+part numbers. The key is `cust_id` plus `cust_part_no`.
 
 Two facts about this table decide every query against it.
 
-- A customer part number is unique inside one account only. `HAS-40-11872` maps to
-  `VI1051DR` for Halcyon Automotive Systems and to `VI1044ADR` for Halcyon
-  Automotive de Mexico. A lookup without `cust_id` returns both rows.
-- `actv_flg = 'N'` marks a mapping that the customer retired. The row stays, because
-  old purchase orders still quote that number.
+- A customer part number is unique inside one account only. Real example:
+  `HAS-40-11872` maps to `VI1051DR` for Halcyon Automotive Systems and to
+  `VI1044ADR` for Halcyon Automotive de Mexico. Two different devices, same customer
+  string, related companies. A lookup without `cust_id` returns both rows and you
+  will not be able to tell which is right.
+- `actv_flg = 'N'` marks a mapping the customer retired. The row stays, because old
+  purchase orders still quote that number.
 
-`ord_ln` carries the Vantera part number only. A question phrased with a customer
-part number resolves through `part_xref` first.
+Finally: `ord_ln` carries the Vantera part number only. A question phrased with a
+customer part number has to resolve through `part_xref` first, and that resolution
+needs the customer.
 
 ## Related pages
 
