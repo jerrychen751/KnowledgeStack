@@ -50,6 +50,7 @@ export default function RootLayout({ children }: { children: ReactNode }): React
               pages={[
                 { href: "/", label: "Ask" },
                 { href: "/sources", label: "Sources" },
+                { href: "/databases", label: "Databases" },
               ]}
             />
             <AccountMenu />

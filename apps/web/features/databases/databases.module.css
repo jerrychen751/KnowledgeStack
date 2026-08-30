@@ -1,0 +1,164 @@
+.card {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.card + .card {
+  margin-top: 1rem;
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.125rem 1.25rem;
+}
+
+.cardName {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.cardDescription {
+  margin-top: 0.25rem;
+  max-width: 34rem;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+
+.cardStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.25rem;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.dsn {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  color: var(--ink);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.statusDot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background: var(--signal);
+}
+
+.statusError .statusDot {
+  background: var(--warn);
+}
+
+.statusError {
+  color: var(--warn);
+}
+
+.cardActions {
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.confirm {
+  max-width: 18rem;
+  color: var(--warn);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.cardActions .confirmButton {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.cardActions .confirmButton:hover:not(:disabled) {
+  border-color: var(--warn);
+  background: var(--surface-sunken);
+}
+
+.form {
+  padding: 1.125rem 1.25rem 1.25rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.fieldWide {
+  grid-column: 1 / -1;
+}
+
+.input {
+  width: 100%;
+  padding: 0.4375rem 0.625rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.input:focus-visible {
+  border-color: var(--signal);
+}
+
+.monoInput {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.formFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: 1.125rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.formNote {
+  max-width: 34rem;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.busy {
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 46rem) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cardHead {
+    flex-direction: column;
+  }
+}
