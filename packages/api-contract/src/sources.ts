@@ -99,7 +99,7 @@ export const uploadedFileSchema = z
     }
   });
 
-/** One file of an upload request. `text` holds the whole file, of 1 through 1000000 characters. */
+/** One file of an upload request. `text` holds the whole file, of 1000000 characters or fewer. An empty file is valid and indexes to zero chunks. */
 export type UploadedFile = z.infer<typeof uploadedFileSchema>;
 
 export const saveUploadsRequestSchema = z.object(
