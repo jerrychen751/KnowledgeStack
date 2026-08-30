@@ -1,54 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import type { FindAccountResponse } from "@knowledgestack/api-contract/auth";
+import { sendJson } from "@/lib/api-client";
 
-import { requestJson, sendJson } from "@/lib/api-client";
-import { workspaceChangedEvent } from "@/lib/workspace-changed-event";
-
+import { useAccount } from "./account-context";
 import styles from "./shell.module.css";
 
 export function AccountMenu(): ReactNode {
-  const [account, setAccount] = useState<FindAccountResponse | null>(null);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    let isCurrent = true;
-    const readAccount = () => {
-      requestJson<FindAccountResponse>("/api/auth/session")
-        .then((body) => {
-          if (isCurrent) {
-            setAccount(body);
-          }
-        })
-        .catch(() => {
-          if (isCurrent) {
-            setAccount(null);
-          }
-        });
-    };
-
-    readAccount();
-    window.addEventListener(workspaceChangedEvent, readAccount);
-
-    return () => {
-      isCurrent = false;
-      window.removeEventListener(workspaceChangedEvent, readAccount);
-    };
-  }, [pathname]);
-
+  const account = useAccount();
   if (account === null) {
     return null;
   }
 
   return (
     <div className={styles.account}>
-      <Link href="/workspaces" className={styles.workspace}>
-        {account.activeWorkspace?.name ?? "Choose a workspace"}
-      </Link>
       <span className={styles.identity}>
         {account.user.externalImageUrl === null ? null : (
           <img

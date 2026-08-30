@@ -4,7 +4,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { AccountMenu } from "@/features/shell/account-menu";
+import { AccountProvider } from "@/features/shell/account-context";
 import { NavLinks } from "@/features/shell/nav-links";
+import { WorkspaceChip } from "@/features/shell/workspace-chip";
 import styles from "@/features/shell/shell.module.css";
 import "@/styles/globals.css";
 
@@ -30,32 +32,35 @@ export default function RootLayout({ children }: { children: ReactNode }): React
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
         <div className={styles.shell}>
-          <header className={styles.header}>
-            <Link href="/" className={styles.wordmark}>
-              <svg
-                className={styles.mark}
-                width="14"
-                height="12"
-                viewBox="0 0 14 12"
-                aria-hidden="true"
-                fill="none"
-              >
-                <rect y="0" width="14" height="2" fill="currentColor" />
-                <rect y="5" width="10" height="2" fill="currentColor" />
-                <rect y="10" width="6" height="2" fill="var(--signal)" />
-              </svg>
-              <span className={styles.wordmarkText}>KnowledgeStack</span>
-            </Link>
-            <NavLinks
-              pages={[
-                { href: "/", label: "Ask" },
-                { href: "/sources", label: "Sources" },
-                { href: "/databases", label: "Databases" },
-                { href: "/settings", label: "Settings" },
-              ]}
-            />
-            <AccountMenu />
-          </header>
+          <AccountProvider>
+            <header className={styles.header}>
+              <Link href="/" className={styles.wordmark}>
+                <svg
+                  className={styles.mark}
+                  width="14"
+                  height="12"
+                  viewBox="0 0 14 12"
+                  aria-hidden="true"
+                  fill="none"
+                >
+                  <rect y="0" width="14" height="2" fill="currentColor" />
+                  <rect y="5" width="10" height="2" fill="currentColor" />
+                  <rect y="10" width="6" height="2" fill="var(--signal)" />
+                </svg>
+                <span className={styles.wordmarkText}>KnowledgeStack</span>
+              </Link>
+              <WorkspaceChip />
+              <NavLinks
+                pages={[
+                  { href: "/", label: "Ask" },
+                  { href: "/sources", label: "Sources" },
+                  { href: "/databases", label: "Databases" },
+                  { href: "/settings", label: "Settings" },
+                ]}
+              />
+              <AccountMenu />
+            </header>
+          </AccountProvider>
           <main className={styles.main}>{children}</main>
         </div>
       </body>

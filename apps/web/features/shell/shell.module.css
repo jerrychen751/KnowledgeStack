@@ -76,6 +76,7 @@
 
 .workspace {
   padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--surface-sunken);
