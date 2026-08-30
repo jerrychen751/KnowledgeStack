@@ -26,3 +26,15 @@ Check again only when a second boundary sits between the two points.
 - The model wrote the value. A tool call arrives as text the model produced, so `apps/api/src/tools/tool.registry.ts` and each `@Tool` method parse it and answer the model with a correction.
 - A third party wrote the value. An OAuth response and a connector payload both leave a system this repository does not control.
 - The check tests a different fact. A path that a person supplied needs containment even after the type says it is a string.
+
+## The Prisma diff drops the vector index
+
+`prisma migrate dev` writes `DROP INDEX "document_chunks_embedding_idx";` at the top of every migration it generates. Delete those two lines before you commit the migration, and recreate the index in any database that already ran it.
+
+Prisma cannot represent an HNSW index on `DocumentChunk.embedding`, because the column is `Unsupported("vector(1536)")`. So the diff sees an index the schema does not declare and proposes to remove it. `apps/api/prisma/migrations/20260811185206_add_document_sources/migration.sql:88` is the hand-written statement that creates it.
+
+The drop is silent. Nothing fails, and the vector search in `apps/api/src/tools/document.tools.ts:64` keeps answering, because a sequential scan returns the same rows. Only the latency changes, and only once the corpus is large enough to notice.
+
+```sql
+CREATE INDEX "document_chunks_embedding_idx" ON "document_chunks" USING hnsw ("embedding" vector_cosine_ops);
+```
