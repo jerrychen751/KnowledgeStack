@@ -27,6 +27,7 @@ Three design choices matter most. The agent holds no write path to a business da
 - **Text to SQL under a read-only contract.** The agent reads the tables, columns, constraints and five sample rows, then runs one SELECT inside `BEGIN READ ONLY` with a 60 second timeout and a 1000 row ceiling.
 - **Structure-aware chunking.** The chunker parses Markdown and keeps the heading path of every chunk. It packs sibling sections up to 512 tokens, splits a long table by row and repeats its header, and re-fences each piece of a split code block.
 - **Automatic compaction.** A chat that reaches 100 turns or 256000 tokens summarizes its oldest turns, keeps the newest tenth as written, and reports the new context size to the browser.
+- **An MCP server.** One route exposes the same five tools to an outside agent, such as Claude Code. A workspace-scoped token authorizes each call, and `/settings/mcp-tokens` prints the command that registers the server in the client the person runs.
 - **Encrypted secrets.** AES-256-GCM covers every OAuth token and every database password before it reaches Postgres. The session cookie is stored as a SHA-256 hash, so a database dump signs nobody in.
 - **A demo fixture with 20 known traps.** 24 tables of a fictional semiconductor supplier, and 13 wiki pages that are the only place its codes, units and join paths are written down.
 
@@ -225,6 +226,7 @@ TENANT_POSTGRES_DB=
 | `CONFLUENCE_CLIENT_ID`, `CONFLUENCE_CLIENT_SECRET` | for Confluence | The OAuth 2.0 (3LO) app from the [Atlassian developer console](https://developer.atlassian.com/console/myapps/). |
 | `WEB_APP_URL` | no | The origin of the web app. Defaults to `http://localhost:3000`. |
 | `UPLOAD_ROOT` | no | The directory that holds uploaded files. Defaults to `apps/api/.uploads`. |
+| `MCP_PUBLIC_URL` | no | The address an MCP client posts to. Defaults to `http://127.0.0.1:<PORT>`. Set it when a tunnel or a deployment puts the API behind another host. |
 
 Generate the encryption key:
 
@@ -300,6 +302,7 @@ KnowledgeStack/
 │   │       ├── encryption/             AES-256-GCM over every stored secret
 │   │       ├── sources/                source routes, uploads, the OAuth callback
 │   │       ├── sync/                   the reconcile pass
+│   │       ├── mcp/                    the MCP route, the token guard and the token routes
 │   │       ├── tools/                  the @Tool methods and the registry
 │   │       └── workspaces/             workspaces, join codes, membership
 │   └── web/                            Next.js app, port 3000
@@ -325,7 +328,6 @@ Three points are not obvious from the tree.
 
 ## Future Improvements
 
-- **A protocol server.** `ToolRegistry` already holds every declaration, so a Model Context Protocol server can expose the same five tools to any client over stdio or streamable HTTP.
 - **A scheduled sync.** A pass runs today only when a person uploads a file or presses Sync. A scheduler would keep each source current without a click.
 - **Attachment text.** A PDF indexes as metadata and no chunks, because no connector returns the text of a binary file. A document converter such as Docling would return that text.
 - **More database engines.** The schema already carries `MYSQL` and `MONGODB`, and only the PostgreSQL driver is written.
