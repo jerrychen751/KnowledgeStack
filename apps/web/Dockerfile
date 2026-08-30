@@ -21,8 +21,7 @@ RUN --mount=type=cache,id=pnpm-web-development,target=/pnpm/store \
 FROM development-dependencies AS build
 
 COPY tsconfig.base.json ./
-COPY apps/web/next.config.mjs apps/web/proxy.ts apps/web/tsconfig.json ./apps/web/
-COPY apps/web/app ./apps/web/app
+COPY apps/web ./apps/web
 COPY packages/api-contract/tsconfig.json ./packages/api-contract/
 COPY packages/api-contract/src ./packages/api-contract/src
 
