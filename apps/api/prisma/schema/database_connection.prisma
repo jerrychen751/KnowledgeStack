@@ -20,7 +20,7 @@ model DatabaseConnection {
   username          String
   encryptedPassword String                   @map("encrypted_password")
   status            DatabaseConnectionStatus @default(active)
-  // Time of the last check that opened a connection with the stored credentials
+  // Time of the last check that wrote the status, and not the time of the last successful query: a statement on a connection already active writes nothing
   lastCheckedAt     DateTime                 @default(now()) @map("last_checked_at")
   createdAt         DateTime                 @default(now()) @map("created_at")
   updatedAt         DateTime                 @updatedAt @map("updated_at")

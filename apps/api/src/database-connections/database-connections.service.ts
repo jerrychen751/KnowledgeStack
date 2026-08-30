@@ -8,6 +8,7 @@ import type {
 } from "@knowledgestack/shared/database-connections";
 
 import { EncryptionService } from "../encryption/encryption.service.js";
+import { DatabaseConnectionStatus } from "../generated/prisma/enums.js";
 
 import {
   type ConnectionSettings,
@@ -139,7 +140,7 @@ export class DatabaseConnectionsService {
   }
 
   /**
-   * Resolve one connection to the settings the pool needs, with the password decrypted.
+   * Resolve one connection to the settings the pool needs, with the password decrypted and the stored status.
    *
    * Throws NotFoundException when the workspace holds no such connection, and an Error when the stored
    * password does not decrypt with the current TOKEN_ENCRYPTION_KEY.
@@ -147,7 +148,7 @@ export class DatabaseConnectionsService {
   private async readConnectionSettings(
     workspaceId: string,
     key: { databaseConnectionId: string } | { name: string },
-  ): Promise<ConnectionSettings> {
+  ): Promise<ConnectionSettings & { status: DatabaseConnectionStatus }> {
     const connection = await this.databaseConnectionRepository.readConnectionRow(workspaceId, key);
     if (connection === null) {
       throw new NotFoundException(
@@ -165,6 +166,7 @@ export class DatabaseConnectionsService {
       database: connection.database,
       username: connection.username,
       password: this.encryptionService.decrypt(connection.encryptedPassword),
+      status: connection.status,
     };
   }
 
@@ -188,9 +190,10 @@ export class DatabaseConnectionsService {
    * `params` fills the `$1` and `$2` placeholders, so a caller never concatenates a value into the statement.
    *
    * The caller must check the statement first when a model wrote it. This method runs whatever it receives,
-   * inside the read-only transaction and the sixty second timeout the pool sets. It stamps the row with the
-   * outcome, so real use keeps the status current, and a statement that fails after the connection opens
-   * leaves the status active.
+   * inside the read-only transaction and the sixty second timeout the pool sets. It stamps the row only when
+   * a success follows a stored error, so a working connection writes nothing. A connection failure stamps the
+   * row every time, so `lastCheckedAt` reports how recent the failure is. A statement that fails after the
+   * connection opens leaves the status active.
    */
   async executeSql(
     workspaceId: string,
@@ -201,7 +204,9 @@ export class DatabaseConnectionsService {
     const settings = await this.readConnectionSettings(workspaceId, { name });
     try {
       const rows = await this.databaseConnectionPool.executeSql(settings, sql, params);
-      await this.databaseConnectionRepository.recordConnectionCheck(settings.id, true);
+      if (settings.status !== DatabaseConnectionStatus.active) {
+        await this.databaseConnectionRepository.recordConnectionCheck(settings.id, true);
+      }
 
       return rows;
     } catch (error) {
