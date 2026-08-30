@@ -8,6 +8,7 @@ import type {
 } from "@knowledgestack/shared/database-connections";
 
 import { EncryptionService } from "../encryption/encryption.service.js";
+import { Prisma } from "../generated/prisma/client.js";
 import { DatabaseConnectionStatus } from "../generated/prisma/enums.js";
 
 import {
@@ -71,6 +72,10 @@ export class DatabaseConnectionsService {
    * leaves the table untouched and the response carries no connection. The same name sent again corrects the
    * stored credentials, and the check runs before the write there too: a check that fails leaves the stored
    * credentials as they are, and the response carries that unchanged row so the browser can show its status.
+   *
+   * Two requests can read the same free name and both reach the insert, because the credential check between
+   * the read and the write takes up to five seconds. The unique index over the workspace and the name rejects
+   * the second insert, and this method reports that as a failure the person can act on.
    */
   async createDatabaseConnection(
     workspaceId: string,
@@ -106,12 +111,24 @@ export class DatabaseConnectionsService {
       encryptedPassword: this.encryptionService.encrypt(request.password),
     };
     if (held === null) {
-      const created = await this.databaseConnectionRepository.createDatabaseConnection(workspaceId, {
-        name: request.name,
-        ...fields,
-      });
+      try {
+        const created = await this.databaseConnectionRepository.createDatabaseConnection(
+          workspaceId,
+          { name: request.name, ...fields },
+        );
 
-      return { success: true, databaseConnection: this.describeConnection(created) };
+        return { success: true, databaseConnection: this.describeConnection(created) };
+      } catch (error) {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+          throw error;
+        }
+
+        return {
+          success: false,
+          message: `This workspace already holds a database named ${request.name}. Send it again to correct the stored credentials.`,
+          databaseConnection: null,
+        };
+      }
     }
 
     const updated = await this.databaseConnectionRepository.updateDatabaseConnection(

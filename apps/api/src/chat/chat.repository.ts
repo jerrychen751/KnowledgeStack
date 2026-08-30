@@ -54,19 +54,28 @@ export class ChatRepository {
    * Insert one turn in the running state and stamp the chat.
    *
    * The turn index comes from the turn count inside the transaction, so two writers cannot agree on it. The
-   * primary key over the chat and the index rejects the second insert, and Prisma reports P2002.
+   * primary key over the chat and the index rejects the second insert, and Prisma reports P2002. Returns null
+   * for that insert, so the caller reports the conflict in words a person can read.
    */
-  async createTurn(chatId: string, question: string, modelId: string): Promise<number> {
-    return this.prisma.$transaction(async (transaction) => {
-      const turnIndex = await transaction.turn.count({ where: { chatId } });
-      await transaction.turn.create({ data: { chatId, turnIndex, question, modelId } });
-      await transaction.chat.update({
-        where: { id: chatId },
-        data: turnIndex === 0 ? { title: question.slice(0, 60) } : { updatedAt: new Date() },
-      });
+  async createTurn(chatId: string, question: string, modelId: string): Promise<number | null> {
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        const turnIndex = await transaction.turn.count({ where: { chatId } });
+        await transaction.turn.create({ data: { chatId, turnIndex, question, modelId } });
+        await transaction.chat.update({
+          where: { id: chatId },
+          data: turnIndex === 0 ? { title: question.slice(0, 60) } : { updatedAt: new Date() },
+        });
 
-      return turnIndex;
-    });
+        return turnIndex;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   /** Write the notes of one compaction onto the chat, before the answer that produced them can fail. */

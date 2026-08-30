@@ -142,8 +142,11 @@ export class ChatService implements OnModuleInit {
    * `finally` block writes the turn on success, on a model failure, and on a disconnect. A `compaction`
    * frame writes the notes onto the chat at once, because the answer can still fail one line later.
    *
-   * Answers 409 while the newest turn runs. A running turn older than 10 minutes belongs to no live run,
-   * because the loop stops at 50 model calls of a few seconds each, so this method fails it and continues.
+   * Throws ConflictException while the newest turn runs. A running turn older than 10 minutes belongs to no
+   * live run, because the loop stops at 50 model calls of a few seconds each, so this method fails it and
+   * continues. Two questions that pass that guard together race for the turn index, and the one that loses
+   * throws the same ConflictException. The controller flushes the response headers before it reads this
+   * generator, so both leave as an `error` frame on the stream and never as an HTTP status.
    */
   async *streamTurn(
     workspaceId: string,
@@ -178,6 +181,10 @@ export class ChatService implements OnModuleInit {
     messages.push({ role: "user", content: question });
 
     const turnIndex = await this.chatRepository.createTurn(chatId, question, modelId);
+    if (turnIndex === null) {
+      throw new ConflictException("This chat is still answering the question before this one.");
+    }
+
     const displayTexts: string[] = [];
     const citations: Citation[] = [];
     const queryResults: QueryResult[] = [];
