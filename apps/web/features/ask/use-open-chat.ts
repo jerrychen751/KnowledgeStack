@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   ChatStreamEvent,
@@ -15,46 +15,104 @@ import { RedirectError, requestJson, sendRequest } from "@/lib/api-client";
 
 /** Hold the turns of one chat and run one question at a time against `POST /chat/:chatId/turns`.
  *
- * The API stores every turn, so this hook keeps no summary and no compacted turn count. `chatId` names the chat to load on mount, and a null value starts an empty one. `askQuestion` opens the chat on the first question, appends a turn, reads the Server-Sent Events stream into it, and marks it done or error. Call it only when `isRunning` is false and the text is not blank; it reads the index of the new turn from the current length, and a second call in flight would write into the wrong turn.
+ * The API stores every turn, so this hook keeps no summary and no compacted turn count. `routeChatId` names the chat to load on mount, and a null value starts an empty one. `askQuestion` opens the chat on the first question, appends a turn, reads the Server-Sent Events stream into it, and marks it done or error. Call it only when `isRunning` is false and the text is not blank; it reads the index of the new turn from the current length, and a second call in flight would write into the wrong turn.
  *
  * `usage` reports how full the chat is after the last answer, and is null until the first answer finishes.
+ *
+ * The hook also owns which chat is open. `openChat` clears the thread, reads the next chat and writes the URL with `pushState`, so no Next.js navigation unmounts this page and drops a running stream. `openChat(null)` starts an empty chat at `/`. A `popstate` listener runs the same read for the back button. `isLoadingChat` is true while a read is in flight, and `loadFailure` carries the message when a read fails.
+ *
+ * A chat switch during an answer makes that answer inert in the browser: it stops writing turns, usage and the run state, and the composer accepts the next question at once. The API keeps the stream open and stores the finished turn, so the abandoned chat holds the complete answer.
  */
-export function useAnswerStream(
-  chatId: string | null,
+export function useOpenChat(
+  routeChatId: string | null,
   modelId: string,
   modelIds: readonly string[],
 ): {
+  openChatId: string | null;
   turns: Turn[];
   isRunning: boolean;
+  isLoadingChat: boolean;
+  loadFailure: string;
   usage: ContextUsage | null;
+  openChat: (chatId: string | null) => void;
   askQuestion: (text: string) => Promise<void>;
 } {
-  const [openChatId, setOpenChatId] = useState(chatId);
+  const [openChatId, setOpenChatId] = useState(routeChatId);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [loadFailure, setLoadFailure] = useState("");
   const [usage, setUsage] = useState<ContextUsage | null>(null);
+  const latestReadId = useRef(0);
 
-  useEffect(() => {
-    if (chatId === null) {
+  const readChat = useCallback((nextChatId: string | null) => {
+    const readId = (latestReadId.current += 1);
+    setOpenChatId(nextChatId);
+    setTurns([]);
+    setIsRunning(false);
+    setUsage(null);
+    setLoadFailure("");
+    setIsLoadingChat(nextChatId !== null);
+    if (nextChatId === null) {
       return;
     }
 
-    requestJson<ReadChatResponse>(`/api/chat/${chatId}`)
+    requestJson<ReadChatResponse>(`/api/chat/${nextChatId}`)
       .then((body) => {
-        setTurns(body.turns);
-        setUsage(body.usage);
+        if (latestReadId.current === readId) {
+          setTurns(body.turns);
+          setUsage(body.usage);
+        }
       })
-      .catch(() => setTurns([]));
-  }, [chatId]);
+      .catch((error) => {
+        if (latestReadId.current === readId && !(error instanceof RedirectError)) {
+          setLoadFailure(error instanceof Error ? error.message : "The chat did not load.");
+        }
+      })
+      .finally(() => {
+        if (latestReadId.current === readId) {
+          setIsLoadingChat(false);
+        }
+      });
+  }, []);
+
+  const openChat = useCallback(
+    (nextChatId: string | null) => {
+      window.history.pushState(null, "", nextChatId === null ? "/" : `/ask/${nextChatId}`);
+      readChat(nextChatId);
+    },
+    [readChat],
+  );
+
+  useEffect(() => {
+    readChat(routeChatId);
+  }, [routeChatId, readChat]);
+
+  useEffect(() => {
+    const followHistory = () => {
+      const path = window.location.pathname;
+      readChat(path.startsWith("/ask/") ? path.slice("/ask/".length) : null);
+    };
+
+    window.addEventListener("popstate", followHistory);
+
+    return () => window.removeEventListener("popstate", followHistory);
+  }, [readChat]);
 
   const askQuestion = useCallback(
     async (text: string) => {
       const asked = text.trim();
       const turnIndex = turns.length;
-      const changeTurn = (change: (turn: Turn) => Turn) =>
+      const runId = (latestReadId.current += 1);
+      const changeTurn = (change: (turn: Turn) => Turn) => {
+        if (latestReadId.current !== runId) {
+          return;
+        }
+
         setTurns((previous) =>
           previous.map((turn, index) => (index === turnIndex ? change(turn) : turn)),
         );
+      };
 
       setTurns((previous) => [
         ...previous,
@@ -149,7 +207,9 @@ export function useAnswerStream(
                 ],
               }));
             } else if (event.type === "context") {
-              setUsage(event.usage);
+              if (latestReadId.current === runId) {
+                setUsage(event.usage);
+              }
             } else if (event.type === "error") {
               throw new Error(event.message);
             } else if (event.type === "done") {
@@ -174,11 +234,13 @@ export function useAnswerStream(
           errorMessage: error instanceof Error ? error.message : "The answer failed.",
         }));
       } finally {
-        setIsRunning(false);
+        if (latestReadId.current === runId) {
+          setIsRunning(false);
+        }
       }
     },
     [modelId, modelIds, openChatId, turns],
   );
 
-  return { turns, isRunning, usage, askQuestion };
+  return { openChatId, turns, isRunning, isLoadingChat, loadFailure, usage, openChat, askQuestion };
 }

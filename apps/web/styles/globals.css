@@ -24,6 +24,7 @@
 
   --radius: 2px;
   --rail-width: 25rem;
+  --chat-list-width: 15rem;
   --shell-width: 78rem;
 
   --label: 500 0.6875rem/1 var(--font-mono), ui-monospace, monospace;

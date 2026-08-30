@@ -1,7 +1,172 @@
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--rail-width);
+  grid-template-columns: var(--chat-list-width) minmax(0, 1fr) var(--rail-width);
   height: calc(100dvh - 3.25rem);
+}
+
+.chatList {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.chatListHead {
+  flex: none;
+  padding: 0.875rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.newChat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4375rem 0.625rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: left;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.newChat:hover {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.newChatMark {
+  flex: none;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.newChat:hover .newChatMark {
+  color: var(--signal);
+}
+
+.chatListBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.375rem 0 2rem;
+}
+
+.chatListEmpty,
+.chatListFailure {
+  padding: 0.875rem 0.9375rem;
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+}
+
+.chatListFailure {
+  color: var(--warn);
+}
+
+.chatRow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  padding-right: 0.4375rem;
+  transition: background-color 120ms ease;
+}
+
+.chatRow:hover {
+  background: var(--surface-sunken);
+}
+
+.chatRowActive,
+.chatRowActive:hover {
+  background: var(--signal-wash);
+  box-shadow: inset 2px 0 0 var(--signal);
+}
+
+.chatOpen {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.25rem 0.5rem 0.9375rem;
+  text-align: left;
+}
+
+.chatTitle {
+  display: block;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chatRowActive .chatTitle {
+  font-weight: 500;
+  color: var(--signal);
+}
+
+.chatTime {
+  display: block;
+  margin-top: 0.1875rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  color: var(--ink-faint);
+}
+
+.chatDelete {
+  flex: none;
+  align-self: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  line-height: 1;
+  color: var(--ink-faint);
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+
+.chatRow:hover .chatDelete,
+.chatDelete:focus-visible {
+  opacity: 1;
+}
+
+.chatDelete:hover {
+  background: var(--paper);
+  color: var(--warn);
+}
+
+.chatConfirm {
+  display: flex;
+  flex: none;
+  align-self: center;
+  gap: 0.375rem;
+}
+
+.chatConfirmDelete,
+.chatConfirmCancel {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+}
+
+.chatConfirmDelete {
+  color: var(--warn);
+  font-weight: 500;
+}
+
+.chatConfirmCancel {
+  color: var(--ink-faint);
+}
+
+.chatConfirmDelete:hover,
+.chatConfirmCancel:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
 }
 
 .thread {
@@ -23,6 +188,22 @@
 .streamInner {
   max-width: 44rem;
   margin: 0 auto;
+}
+
+.loadingChat,
+.loadFailure {
+  max-width: 44rem;
+  margin: 0 auto;
+  font-size: 0.875rem;
+  color: var(--ink-faint);
+}
+
+.loadFailure {
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--warn);
 }
 
 .streamEmpty {
@@ -508,6 +689,10 @@
   .layout {
     display: block;
     height: auto;
+  }
+
+  .chatList {
+    display: none;
   }
 
   .thread {

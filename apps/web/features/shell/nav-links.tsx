@@ -15,16 +15,21 @@ export function NavLinks({ pages }: { pages: { href: string; label: string }[] }
 
   return (
     <nav className={styles.nav}>
-      {pages.map((page) => (
-        <Link
-          key={page.href}
-          href={page.href}
-          className={`${styles.navLink} ${pathname === page.href ? styles.navLinkActive : ""}`}
-          aria-current={pathname === page.href ? "page" : undefined}
-        >
-          {page.label}
-        </Link>
-      ))}
+      {pages.map((page) => {
+        const isActive =
+          page.href === "/" ? pathname === "/" || pathname.startsWith("/ask/") : pathname === page.href;
+
+        return (
+          <Link
+            key={page.href}
+            href={page.href}
+            className={`${styles.navLink} ${isActive ? styles.navLinkActive : ""}`}
+            aria-current={isActive ? "page" : undefined}
+          >
+            {page.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
