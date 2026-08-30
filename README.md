@@ -1,228 +1,338 @@
-Tools & Technologies Used:
+# KnowledgeStack
 
-- Frontend: React, Next.js
-- Backend: Node, Express, Nest.js
-- RAG Agent with Text-to-SQL capabilities, which an MCP server or a web interface exposes
+KnowledgeStack answers a question from the wiki pages and the SQL databases of one team, and it shows the document chunk and the SQL statement behind every sentence.
 
-Motivation:
+<p align="center">
+  <img src="docs/demo.gif" alt="One question end to end: the streamed tool steps, the citation rail, the returned rows and the SQL below the answer." width="900">
+</p>
 
-- At companies, each team keeps its knowledge in its own design docs and scratch workspaces. This project builds one RAG agent that reads all of them.
-- The core features include retrieval augmented generation with citations, database + documentation connectors, and Text-to-SQL capabilities for analysts to obtain answers to their queries quickly.
+<p align="center">
+  <em>One question against the demo fixture. The agent searches the wiki, reads the live schema, writes one read-only SELECT, and cites the chunk behind every sentence.</em>
+</p>
 
-Browser sends /api/... requests to the web server on port 3000. The web server forwards it to the backend API server on port 3001.
+## Overview
 
-Getting Started with Local Development:
+A company splits its knowledge in two. The wiki page explains that `cst_typ_cd = '04'` marks an intercompany account and that `unit_px` is hundredths of a cent; the database holds the order rows. Neither half answers a revenue question alone, and an analyst who queries the tables without the wiki gets a number that looks right and is 100 times too high.
 
-1. Install package dependencies.
+KnowledgeStack joins the two halves in one reply. A team opens a workspace, uploads or connects its documentation, and registers its databases. The agent searches the embedded document chunks, reads the live schema and sample rows of a registered database, writes one read-only SELECT, and returns the answer with a numbered citation for each sentence and the matched rows below it.
+
+Three design choices matter most. The agent holds no write path to a business database, because five checks stand between the model and the database and each one alone stops a write. Every tool is a decorated method that one startup scan discovers, so the browser agent and any future protocol server call the same code. The answer streams as Server-Sent Events, so the browser draws each tool step, each citation and each result table while the model still writes.
+
+## Features
+
+- **One workspace per team.** Google OAuth signs a person in. An eight-character join code adds a member. A workspace owns its sources, documents, chunks, databases and chats, and one question reads one workspace only.
+- **Three document sources.** Drag files onto the page, or connect Notion or Confluence through OAuth 2.0. One callback route serves every provider, because the state value carries the provider name.
+- **Incremental sync.** A pass lists the documents of a source, re-indexes only the ones the provider edited after the last index, and deletes a stored row only after the provider confirms the document is gone.
+- **Cited answers.** A search returns the six nearest chunks. The answer marks each used chunk as `[n]`. The rail beside the answer shows that chunk, its heading path and its cosine similarity, and a click on `[n]` opens it.
+- **Text to SQL under a read-only contract.** The agent reads the tables, columns, constraints and five sample rows, then runs one SELECT inside `BEGIN READ ONLY` with a 60 second timeout and a 1000 row ceiling.
+- **Structure-aware chunking.** The chunker parses Markdown and keeps the heading path of every chunk. It packs sibling sections up to 512 tokens, splits a long table by row and repeats its header, and re-fences each piece of a split code block.
+- **Automatic compaction.** A chat that reaches 100 turns or 256000 tokens summarizes its oldest turns, keeps the newest tenth as written, and reports the new context size to the browser.
+- **Encrypted secrets.** AES-256-GCM covers every OAuth token and every database password before it reaches Postgres. The session cookie is stored as a SHA-256 hash, so a database dump signs nobody in.
+- **A demo fixture with 20 known traps.** 24 tables of a fictional semiconductor supplier, and 13 wiki pages that are the only place its codes, units and join paths are written down.
+
+## Architecture
+
 ```
-cd /Users/jerry/coding/KnowledgeStack
-pnpm install --frozen-lockfile
+                               ┌───────────┐
+                               │  Browser  │
+                               └─────┬─────┘
+                     /api/... with the ks_session cookie
+                                     │
+  ┌──────────────────────────────────▼──────────────────────────────────┐
+  │  Web  ·  Next.js 16  ·  port 3000                                   │
+  │  proxy.ts sends a page request that carries no cookie to /signin    │
+  │  app/api/[...path] forwards every /api call and streams the answer  │
+  └──────────────────────────────────┬──────────────────────────────────┘
+                       API_INTERNAL_URL, server to server
+                                     │
+  ┌──────────────────────────────────▼──────────────────────────────────┐
+  │  API  ·  NestJS 11  ·  port 3001                                    │
+  │  SessionGuard runs under APP_GUARD  ·  Google OAuth signs a person  │
+  └───────────────┬───────────────────────────────────┬─────────────────┘
+      write path  │                                   │  read path
+  ┌───────────────▼──────────────┐   ┌────────────────▼────────────────┐
+  │  SyncService                 │   │  AgentLoop                      │
+  │   FilesystemConnector        │   │   OpenAI Responses API          │
+  │   NotionConnector            │   │   ToolRegistry                  │
+  │   ConfluenceConnector        │   │    search_document_chunks       │
+  │   createChunks, 512 tokens   │   │    list_databases, list_tables  │
+  │   EmbeddingService, OpenAI   │   │    describe_tables, execute_sql │
+  └───────────────┬──────────────┘   └───────┬─────────────────┬───────┘
+                  │                          │                 │
+                  └────────────┬─────────────┘                 │
+                               │                               │
+  ┌────────────────────────────▼─────┐   ┌─────────────────────▼───────┐
+  │  app-db  ·  PostgreSQL 17        │   │  Business databases         │
+  │  pgvector, HNSW cosine index     │   │  one pg.Pool for each row   │
+  │  workspaces, sources, documents  │   │  a read-only role and       │
+  │  document_chunks, chats, turns   │   │  BEGIN READ ONLY per query  │
+  └──────────────────────────────────┘   └─────────────────────────────┘
 ```
 
-2. Start up the app databases with Docker. There is one main application database and another for a mock tenant (business database). They occupy ports 5432 and 5433 respectively.
+The browser reaches one origin. Next.js serves every page and forwards every `/api/...` call to the API, so the API needs no CORS rule and publishes no port in a deployment. `SessionGuard` runs under `APP_GUARD`, so a route without `@Public()` never runs for a signed-out browser, and the `ActiveWorkspaceId` decorator answers 403 when the browser opened no workspace. Two paths then split at the API. The write path turns a document into rows of `document_chunks`. The read path turns a question into an answer over those rows and over the registered databases.
+
+## Tech Stack
+
+- **Frontend:** Next.js 16 (App Router), React 19, TypeScript 6, CSS Modules, IBM Plex
+- **Backend:** NestJS 11, Node.js 24, Express
+- **Database:** PostgreSQL 17, pgvector, Prisma 7 with a split schema
+- **AI:** OpenAI Responses API, `text-embedding-3-small` at 1536 dimensions, LangChain text splitters, `js-tiktoken`
+- **Contract:** Zod 4 schemas in one workspace package, which both apps import and which derive every wire type
+- **Infrastructure:** Docker Compose, pnpm workspaces, GitHub Actions
+
+## How It Works
+
+### To index a document
+
 ```
-pnpm dev:db
+  a file, a Notion page, or a Confluence page
+        │
+        ▼  connector.listDocuments, 100 per page, cursor paged
+  one row in documents, with last_seen_at set to the pass start time
+        │
+        ▼  connector.fetchDocumentById, only when the provider edit is newer
+  the Markdown body
+        │
+        ▼  createChunks: mdast parse, heading path kept, 512 tokens maximum
+  the chunks, each one a whole section or a whole table row
+        │
+        ▼  EmbeddingService, batched under 2048 inputs and 300000 tokens
+  document_chunks rows, each with a vector(1536) under an HNSW cosine index
 ```
 
-3. Generate the Prisma client and apply any pending migrations to the SQL.
+1. The person uploads a file, or grants access to Notion or Confluence. The grant creates one source per Confluence space, and the sources page runs the first pass by itself.
+2. `SyncService` records the pass start time, then reads the documents of the source one page at a time.
+3. Each listed document writes its metadata and takes the pass start time in `last_seen_at`.
+4. A document re-indexes only when the database holds no index time for it, or when the provider edited it after that time. A re-index replaces every chunk of that document.
+5. The chunker prepends the document title and the heading path to each chunk before it embeds, so a chunk that reads "A member vests after three years" still carries the section it came from.
+6. After the last page, the pass reads every document it did not stamp and asks the provider about each one. It deletes only the ones the provider reports gone, because a listing that omits a live page must not delete it.
+
+### To answer a question
+
+1. The browser posts the question. The API sends the stream headers before the first search, so the browser must treat a stream that ends without a `done` frame as a failure.
+2. `CompactionService` measures the chat. A chat over either limit compacts first, and the browser receives the notes and the new context size.
+3. `AgentLoop` calls the OpenAI Responses API with the question, the instructions and the declared tools.
+4. The model calls `search_document_chunks`. The API embeds the query with the same model that embedded the chunks, then ranks every chunk of that workspace by cosine distance and returns the nearest six.
+5. For a question about numbers, the model calls `list_databases`, then `list_tables`, then `describe_tables`. The last one returns the columns, the primary key, the foreign keys and five live sample rows. A name such as `cst_typ_cd` and an empty column comment state nothing; the sample rows state what the values look like.
+6. The model writes one SELECT and calls `execute_sql`. The API validates it, wraps it in `SELECT * FROM (...) AS query LIMIT 1000`, and runs it in a read-only transaction.
+7. Every fault the model itself can make returns a correction instead of an error. A tool name that does not exist, arguments that are not JSON, a table that the database does not hold: each one answers with the text the model must read, and the model chooses again inside the same answer.
+8. The API streams each piece of the answer text as it arrives. The answer marks each used chunk as `[n]`, the citation rail draws that chunk, and the result table draws below the tool steps.
+
+## Technical Decisions
+
+### Why PostgreSQL holds the vectors
+
+One `pgvector` column in the application database keeps the chunk, its document, its source and its workspace in one row and under one transaction. A separate vector database would need a second write on every index, a second delete on every removed document, and its own copy of the workspace filter. It would also drop the `ON DELETE CASCADE` that removes the chunks of a deleted document today. An HNSW index on `vector_cosine_ops` covers the search at the scale of a team wiki. The cost is that Prisma Client cannot read an `Unsupported("vector(1536)")` column, so the search and the chunk write both use raw SQL.
+
+### How the agent cannot write to a business database
+
+The model writes the SQL, so the SQL is untrusted input. Five checks sit between the model and the database, and each one alone stops a write.
+
 ```
-pnpm prisma:generate
-pnpm prisma:migrate:deploy
+  the model writes a statement
+        │
+        ▼  execute_sql rejects a semicolon and anything but one SELECT or WITH
+        ▼  the statement is wrapped: SELECT * FROM (...) AS query LIMIT 1000
+        ▼  the pooled connection carries default_transaction_read_only=on
+        ▼  every statement runs inside BEGIN READ ONLY
+        ▼  the registered role holds SELECT grants only, such as agent_readonly
+  the rows, at most 1000, in at most 60 seconds
 ```
 
-4. Start the API and the web app. These run locally on your own computer's network namespace (not in Docker) and occupy ports 3001 and 3000 respectively. If using Docker fully, uses the command `pnpm dev:full` which places these processes in Docker containers in addition to the databases (same ports).
-```
-pnpm dev
-```
+The role that the workspace registers is the check that must hold, because it is the only one outside this codebase. The other four keep a mistake in that role from becoming a write. `BEGIN READ ONLY` is stated per statement and not per session, because one `SELECT set_config('default_transaction_read_only','off',false)` turns a session default off and the pool hands that same session to the next query. `statement_timeout` is 60000 milliseconds, so one runaway join cannot hold a connection. The `execute_sql` string check is the weakest of the five and exists for a different reason: it tells the model what it did wrong, in words the model can act on.
 
-External Dependencies:
-- Google OAuth
-- Notion, Confluence
+### Why the browser never calls the API directly
 
-Notes / Clarifications:
+`apps/web/app/api/[...path]/route.ts` forwards every `/api` call to `API_INTERNAL_URL` and passes the session cookie through unread. The browser sees one origin, so the API needs no CORS rule, sets no cross-site cookie, and can stay private to the Docker network in a deployment. The forwarder returns `response.body` instead of reading it, which is what keeps the Server-Sent Event stream flowing through Next.js instead of buffering until the answer ends.
 
-- We use an API, not an MCP server, to obtain information from the sites and the services we connect to. For example, when we read documentation from Notion or Confluence, we use their API. Our agent does not use their MCP servers.
-- We write the core tools that our web UI chatbot uses. Then we write an adapter, a wrapper for the MCP SDK, so that any AI client can call them.
-- We have one internal Postgres DB where we store the vector indices for documents and the chat history. Then we open N read-only connections to the other databases that hold the business data we query.
+### Why a tool is a decorated method
 
-User Story:
+`ToolRegistry` walks every provider of every active module at startup and collects each method that carries `@Tool`. The declaration holds the name, the description, the JSON Schema of the arguments, and the function that builds the browser display text. Two consequences follow. A new tool is one method in one service and no registration list to update. And any second caller, such as a protocol server, reports the same declarations and reaches the same methods, so the browser agent and that server can never drift.
 
-A user registers and obtains a workspace. In that workspace the user connects databases and authenticates against external documentation sources, such as Notion and Confluence, through OAuth.
+### How a sync pass deletes a document without losing a live one
 
-- workspace system, where 1 or more users can connect 1 or more databases which our agent can execute safe queries against
-- the smallest version is the workspace named "SEED", where we use seed-data/ to generate the starter data (24 tables for a single database, plus the 13 wiki pages that document them)
-- a query is "safe" because we wrap each agent query in a read-only transaction, with a user-configurable row limit
-- give the agent a tool that reads the database\_connections table of one workspace. The tool lists each database with the description a person wrote for it.
-- OAuth authentication for the web app and the MCP server
+A provider listing can omit a live page. A rate limit, a permission change or a paging fault all look the same from outside. So the pass never deletes on absence alone. It stamps `last_seen_at` on every listed document with the pass start time, then reads the rows of that source whose stamp predates the pass, and calls `checkDocumentExists` on each one. Only a provider that answers "gone" causes a delete. A provider that cannot answer throws, which aborts the pass and leaves every row in place. The source keeps its previous `last_synced_at`, so the next pass repeats the work rather than skipping it.
 
-### Vocabulary
+### How a long chat stays inside the context window
 
-One thing carries one name, from the Postgres column to the button label.
+Two limits run out on their own: 100 short turns cost far less than 256000 tokens, and 12 turns that quote whole documents cost far more. A chat that reaches either one compacts. The compaction keeps the newest tenth of the turns as written, with a floor of two, and summarizes the rest into notes under four headings. The floor of two exists because a follow-up such as "and the second one?" refers to the turn before the question. The notes never carry a bracketed citation number, because each answer numbers its own results from 1, and a carried number would point at a chunk the new answer never retrieved.
+
+### Why the schema keeps one name for one thing
+
+One concept carries one word from the Postgres column to the button label. The name never changes to add variety.
 
 | Term | Means | Never |
 |---|---|---|
-| workspace | The container that owns sources, documents and members. `workspaces`, `workspace_memberships`, `workspace_id`. | tenant |
-| source | One connected system a workspace reads. `sources`, `documents.source_id`, `SourceProvider`. | document source |
-| chunk | One embedded piece of a document. `document_chunks`, `chunk_index`. | passage |
-| sync | The source-level pass that lists, embeds and deletes. `POST /sources/:sourceId/sync`, `last_synced_at`. | index, re-index |
-| index | Writing the chunks of one document. `last_indexed_at`, `reindexDocument`. | sync |
+| workspace | The container that owns sources, documents and members. | tenant |
+| source | One connected system a workspace reads. | document source |
+| chunk | One embedded piece of a document. | passage |
+| sync | The source-level pass that lists, embeds and deletes. | index, re-index |
+| index | The write of the chunks of one document. | sync |
 | citation | A retrieved chunk shown beside the answer. | evidence |
-| document | A page or a file of a source. The search tool is `search_document_chunks`. | doc |
-| tenant | The demo company database alone: the `tenant-db` container, `TENANT_POSTGRES_*` and `seed-data/tenant_company/`. | a workspace |
+| tenant | The demo company database alone: the `tenant-db` container. | a workspace |
 
-A per-provider file is named `<provider>.<role>.ts`, such as `notion.connector.ts` and `notion.oauth.ts`. A file shared by every provider is named `connector.<role>.ts`.
+A per-provider file is named `<provider>.<role>.ts`, such as `notion.connector.ts` and `notion.oauth.ts`. A file that every provider shares is named `connector.<role>.ts`.
 
-### Database Design
+## Getting Started
 
-##### Internal Application Database
+### Prerequisites
 
-###### workspaces
+- Node.js 24
+- pnpm 11.22.0, which `packageManager` in the root `package.json` pins
+- Docker Desktop
+- An OpenAI API key
+- A Google OAuth 2.0 client, which every page needs
 
-- id
-- name
-- join\_code (the code a member gives to a new person)
-- ...
+### Installation
 
-###### users
-
-- id
-- external\_id (the Google `sub` claim, which never changes)
-- external\_email
-- external\_display\_name
-- external\_image\_url
-- ...
-
-###### workspace\_memberships
-
-- workspace\_id
-- user\_id
-- created\_at
-
-###### user\_sessions
-
-- id
-- token\_hash (SHA-256 of the cookie value; the plaintext token never reaches Postgres)
-- active\_workspace\_id (the workspace this browser reads)
-- expires\_at
-- user\_id
-
-###### database\_connections
-
-- workspace\_id
-- engine (`POSTGRESQL`, `MYSQL`, or `MONGODB`; the API currently queries only `POSTGRESQL`)
-- database
-- host
-- port
-- username
-- encrypted\_password
-- created\_at
-- ...
-
-## Local development
-
-Use Node.js 24, pnpm 11.10.0, and Docker Desktop.
-
-Install the workspace dependencies:
-
-```
+```bash
+git clone https://github.com/jerrychen751/KnowledgeStack.git
+cd KnowledgeStack
 pnpm install --frozen-lockfile
 ```
 
-Copy each template only when its target file does not exist:
+Copy each template only where the target file does not exist:
 
-```
+```bash
 test -e .env || cp .env.example .env
 test -e apps/api/.env || cp apps/api/.env.example apps/api/.env
 test -e apps/web/.env || cp apps/web/.env.example apps/web/.env
 ```
 
-Fill the six root database values and both API database URLs.  
-The API uses the host `127.0.0.1` and the port `3001` when those values stay blank.  
-Set `API_INTERNAL_URL` to `http://127.0.0.1:3001` for the native path.  
-Set `OPENAI_API_KEY` before the API calls OpenAI.  
-Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` before anyone signs in. The API derives the callback URL from `WEB_APP_URL`. Create an OAuth 2.0 client of type Web application at <https://console.cloud.google.com/apis/credentials>. Register `http://localhost:3000/api/auth/google/callback` as an authorized redirect URI on that client.  
-Every OAuth callback names the web app, never the API. Next.js forwards `/api/...` to the API, so the browser opens one origin and the API needs no published port.  
-Open the web app at `http://localhost:3000`, not at `127.0.0.1:3000`. The session cookie belongs to the host in `WEB_APP_URL`, and a browser sends a cookie to one host name only. Notion rejects an IP address in a redirect URI, so every browser-facing host is `localhost`.
+### Environment Variables
 
-Move any current `DB_POOL_URL`, `DB_DIRECT_URL`, and `OPENAI_API_KEY` values from the root file into `apps/api/.env`.
-
-For the fast native path, start the databases first:
+`.env` in the repository root holds the six values that Docker Compose reads to create the two containers.
 
 ```
-pnpm dev:db
+POSTGRES_USER=            # the app database, published on 127.0.0.1:5432
+POSTGRES_PASSWORD=
+POSTGRES_DB=
+TENANT_POSTGRES_USER=     # the demo company database, published on 127.0.0.1:5433
+TENANT_POSTGRES_PASSWORD=
+TENANT_POSTGRES_DB=
+```
+
+`apps/api/.env` holds what the API reads. The API checks its configuration at startup: `AppConfig` validates the process variables it owns, and `PrismaService` requires `DB_POOL_URL`. A missing or malformed value stops the boot. The OAuth client variables are read later, when a person signs in or connects a source, so the API starts without them.
+
+| Variable | Needed | What it is |
+|---|---|---|
+| `DB_POOL_URL` | to boot | The PostgreSQL URL the API queries. |
+| `TOKEN_ENCRYPTION_KEY` | to boot | 32 bytes, base64url encoded. See the command below. |
+| `OPENAI_API_KEY` | to boot | The account that embeds chunks and writes answers. |
+| `DB_DIRECT_URL` | to migrate | The PostgreSQL URL the Prisma CLI uses, in its own process. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | to sign in | The Web application client from the [Google Cloud console](https://console.cloud.google.com/apis/credentials). |
+| `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` | for Notion | The public integration from [My integrations](https://www.notion.so/my-integrations). |
+| `CONFLUENCE_CLIENT_ID`, `CONFLUENCE_CLIENT_SECRET` | for Confluence | The OAuth 2.0 (3LO) app from the [Atlassian developer console](https://developer.atlassian.com/console/myapps/). |
+| `WEB_APP_URL` | no | The origin of the web app. Defaults to `http://localhost:3000`. |
+| `UPLOAD_ROOT` | no | The directory that holds uploaded files. Defaults to `apps/api/.uploads`. |
+
+Generate the encryption key:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+```
+
+Every page needs a signed-in person, so the Google client is not optional in practice. The Notion card and the Confluence card stay disabled until their two variables hold values. On the Atlassian app, pick Resource-level access and grant `read:page:confluence`, `read:space:confluence` and `read:me`.
+
+`apps/web/.env` holds `API_INTERNAL_URL`, which is `http://127.0.0.1:3001` for the native path.
+
+Register these redirect URIs on the matching provider. The API derives both from `WEB_APP_URL`, so a deployment sets no redirect variable.
+
+```
+http://localhost:3000/api/auth/google/callback      Google
+http://localhost:3000/api/sources/oauth/callback    Notion and Confluence
+```
+
+Open the web app at `http://localhost:3000` and not at `127.0.0.1:3000`. The session cookie belongs to the host in `WEB_APP_URL`, and a browser sends a cookie to one host name only. Notion also rejects an IP address in a redirect URI, so every browser-facing host is `localhost`.
+
+### Run
+
+Start the databases in Docker and both apps on the machine:
+
+```bash
+pnpm dev:db                  # app-db on 5432, tenant-db on 5433
 pnpm prisma:generate
 pnpm prisma:migrate:deploy
-pnpm dev
+pnpm dev                     # API on 3001, web on 3000
 ```
 
-`pnpm dev` is an alias for `pnpm dev:apps`.
+Or start every service in Docker, which applies the migrations before it starts the API:
 
-Open the web app at `http://localhost:3000`. The API answers on `http://127.0.0.1:3001`, and only the Next.js server calls it.
-
-For the full container path, start every service through Compose:
-
-```
+```bash
 pnpm dev:full
+pnpm docker:down             # stop the services and keep the data
 ```
 
-Compose applies the app database migrations before it starts the API.
+### The first five minutes in the browser
 
-Stop the services and keep the database data:
+1. Open `http://localhost:3000`. Sign in with Google. The session cookie lasts 30 days.
+2. Create a workspace at `/workspaces`, or type the eight-character code a member gave you.
+3. Open `/sources` and drag the 13 files in `seed-data/wiki/` onto the page. The page reports the chunk count of each document when the pass finishes.
+4. Open `/databases` and register the demo company database: host `127.0.0.1`, port `5433`, and the `agent_readonly` role that `seed-data/tenant_company/06_readonly_role.sql` creates. Write a description, because `list_databases` reports it to the agent.
+5. Open `/` and ask a revenue question, such as "What was net revenue by quarter in 2025?". Watch the tool steps, read the citation rail, and open the SQL below the answer.
+
+## Testing
+
+The repository has no unit test suite. Two other checks run instead, and both run in CI on every push and pull request.
+
+- **The type and build check.** `prisma validate`, `prisma generate`, `pnpm typecheck` across every package, then `pnpm build`. The Zod schemas in `packages/api-contract` derive every request and response type, so a contract change that one app does not follow fails this job.
+- **The container check.** GitHub Actions builds every image, starts the full Compose stack, and calls `/health/live`, `/health/ready` and the web `/health` route. It then calls the API readiness route from inside the web container, which proves the internal network path that every browser request uses.
+
+The seed fixture is the correctness check for the agent. `seed-data/README.md` lists 20 traps that are real in the data and that only the wiki resolves, such as `unit_px` in hundredths of a cent, `del_flg = 'Y'` rows that survive, and an effective-dated territory bridge. An agent that writes SQL without retrieval returns a plausible number for each one, and the number is wrong.
+
+## Project Structure
 
 ```
-pnpm docker:down
+KnowledgeStack/
+├── apps/
+│   ├── api/                            NestJS API, port 3001
+│   │   ├── prisma/schema/              five .prisma files, one per subject area
+│   │   ├── prisma/migrations/          the vector extension and the HNSW cosine index
+│   │   └── src/
+│   │       ├── auth/                   Google sign-in, session cookie, the OAuth registry
+│   │       ├── chat/                   the agent loop, compaction, the SSE controller
+│   │       ├── chunking/               the Markdown-aware chunker
+│   │       ├── config/                 AppConfig, the startup check on the process variables
+│   │       ├── connectors/             filesystem, Notion, Confluence
+│   │       ├── database-connections/   one pg.Pool per database, read-only queries
+│   │       ├── documents/              the document and chunk repositories
+│   │       ├── embedding/              OpenAI embeddings and the token counter
+│   │       ├── encryption/             AES-256-GCM over every stored secret
+│   │       ├── sources/                source routes, uploads, the OAuth callback
+│   │       ├── sync/                   the reconcile pass
+│   │       ├── tools/                  the @Tool methods and the registry
+│   │       └── workspaces/             workspaces, join codes, membership
+│   └── web/                            Next.js app, port 3000
+│       ├── app/                        the routes; app/api/[...path] forwards to the API
+│       ├── components/                 the shared button, label and section
+│       ├── features/                   one folder per page, with its CSS module
+│       └── proxy.ts                    sends a browser without the cookie to /signin
+├── packages/
+│   └── api-contract/                   the Zod schemas that derive every wire type
+├── seed-data/
+│   ├── tenant_company/                 24 tables of the demo company and the read-only role
+│   └── wiki/                           13 Markdown pages that document those tables
+├── docs/                               notes on Docker, NestJS, pnpm, Prisma and tsconfig
+├── scripts/                            validate-compose-environment.mjs
+└── docker-compose.yml
 ```
 
-## Demo flow
+Three points are not obvious from the tree.
 
-Every page needs a Google account. `/signin` sends the browser to Google, and the callback opens a session cookie that lasts 30 days.
+- `apps/api/src/generated/prisma/` is not in Git. `pnpm prisma:generate` writes it, so run that command before the first typecheck.
+- The Prisma schema is split into five files under `prisma/schema/`. `base.prisma` holds the datasource and the generator, which a split schema requires.
+- `apps/api/prisma.config.ts` is the one file besides `main.ts` that loads dotenv, because the Prisma CLI starts as its own process.
 
-`/workspaces` picks the workspace the browser reads. Create one, or type the eight-character code a member gave you. A workspace holds its own sources, documents and chunks, and a question reads the open workspace and no other. The seeded demo workspace keeps its documents, and `SELECT name, join_code FROM workspaces;` reads the code that joins it.
+## Future Improvements
 
-`/sources` adds documents. Drag the files in `seed-data/wiki/` onto the page. The API writes them into `UPLOAD_ROOT`, which defaults to `apps/api/.uploads`, then cuts each file into chunks, embeds every chunk, and stores the vectors in `document_chunks`. The page lists each document with its chunk count. `Sync` runs the pass again, and it deletes the rows of a file that no longer exists. `Remove` beside a file deletes that file and its chunks. `Remove` on the source deletes the source and every file uploaded to it, so a later upload cannot bring the old files back.
+- **A protocol server.** `ToolRegistry` already holds every declaration, so a Model Context Protocol server can expose the same five tools to any client over stdio or streamable HTTP.
+- **A scheduled sync.** A pass runs today only when a person uploads a file or presses Sync. A scheduler would keep each source current without a click.
+- **Attachment text.** A PDF indexes as metadata and no chunks, because no connector returns the text of a binary file. A document converter such as Docling would return that text.
+- **More database engines.** The schema already carries `MYSQL` and `MONGODB`, and only the PostgreSQL driver is written.
+- **An editable SQL preview.** The browser shows the statement after the run. Showing it before the run would let an analyst read and correct the statement first.
+- **Hybrid retrieval.** A search ranks by cosine distance alone. Adding keyword scoring and a reranking pass would help a question that names an exact code such as `ord_typ_cd`.
+- **Parallel tool calls.** The loop runs each call of one round in sequence. Four independent `describe_tables` calls could run at once.
 
-Each workspace indexes its own upload directory, `UPLOAD_ROOT/<workspace id>`, so a file of one workspace never reaches the answers of another.
+## License
 
-The Notion card stays disabled until `NOTION_CLIENT_ID` and `NOTION_CLIENT_SECRET` hold values. Register `WEB_APP_URL` plus `/api/sources/oauth/callback`, by default `http://localhost:3000/api/sources/oauth/callback`, as the redirect URI on the integration. One route serves every connector, because the state value carries the provider. Notion rejects an IP address in a redirect URI, so keep `WEB_APP_URL` on `localhost`.
-
-The Confluence card needs `CONFLUENCE_CLIENT_ID` and `CONFLUENCE_CLIENT_SECRET`. Create an OAuth 2.0 (3LO) integration at <https://developer.atlassian.com/console/myapps/>, pick Resource-level access, register the same redirect URI, and grant `read:page:confluence`, `read:space:confluence` and `read:me`. Atlassian asks the person for one site, and the grant then creates one source per space on that site. Remove the spaces you do not want.
-
-A provider card reads `Connected` once a source of that provider exists, and its Connect button disappears. Remove every source of that provider to connect a different account. The grant creates each source empty, so the sources page runs the first sync pass by itself and reports when the pages are searchable.
-
-`/` asks a question. The chat model calls `search_document_chunks`, which embeds the question and ranks each workspace chunk by cosine distance. For numbers or records, it calls `list_databases`, `list_tables` and `describe_tables`, and then `execute_sql`. The answer marks each used chunk as `[n]`. The citations rail shows that chunk, its heading path and its cosine similarity. A click on `[n]` opens the source chunk. The page shows database rows below the tool steps.
-
-The menu under the question box picks the model that writes the answer. `chat/agent.loop.ts` holds the three choices, and the first one, `gpt-5.6-luna`, answers a request that names no model.
-
-sync/
-- connector.resolver.ts
-- sync.service.ts
-- sync.scheduler.ts
-...
-auth/
-- oauth/
-    - xxx.oauth.ts
-- token.service.ts
-connectors/
-- connector.factory.ts
-- connector.types.ts
-- xxx.connector.ts
-tools/
-- tools.types.ts
-- tools.registry.ts
-- xxx.tool.ts
-agent/ - The loop that calls the model and the tools
-mcp/
-- Protocol endpoint; takes in via stdio or streamable HTTP
-
-Write to app-db: connectors/ -> ingest -> app-db
-Read from app-db: agent/ or mcp/ -> tools/ -> app-db, tenant-db
-
-Vision:
-- A user, such as a company, authenticates a documentation source, such as Notion or Confluence, through OAuth. We then process the documents on a schedule, and each pass reads only the content that changed.
-- We store only the vector embeddings of a document, not the document itself. A query ranks the embeddings and returns the most relevant documents. The agent then opens Notion or Confluence and reads the full document when it needs the full text.
-- The text-to-SQL agent reads the schemas of the connected databases. It also reads the related documentation from the vector store. It writes a SQL query from the schemas, the documentation and the prompt of the user. The web UI shows that query in an editable preview, and one click runs it.
-
-Open questions:
-- Where do we read the documentation from? How do we build the RAG agent? How do we create the index store?
-- How do we sync the vector index database on a schedule? A pass deletes the row of a document the search no longer finds, updates the row of a document whose text changed, and adds a row for each new document.
-- How do we build the agent loop with the OpenAI API?
+MIT. See [LICENSE](LICENSE).
