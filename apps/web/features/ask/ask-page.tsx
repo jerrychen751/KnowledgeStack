@@ -63,7 +63,7 @@ export function AskPage({ chatId }: { chatId: string | null }): ReactNode {
   }, [turns]);
 
   const submitQuestion = () => {
-    if (isRunning || question.trim() === "") {
+    if (isRunning || isLoadingChat || question.trim() === "") {
       return;
     }
 
@@ -131,6 +131,7 @@ export function AskPage({ chatId }: { chatId: string | null }): ReactNode {
           onQuestionChange={setQuestion}
           onSubmit={submitQuestion}
           isRunning={isRunning}
+          isLoadingChat={isLoadingChat}
           modelIds={modelIds}
           modelId={modelId}
           onModelIdChange={setModelId}

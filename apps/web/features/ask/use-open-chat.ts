@@ -15,7 +15,7 @@ import { RedirectError, requestJson, sendRequest } from "@/lib/api-client";
 
 /** Hold the turns of one chat and run one question at a time against `POST /chat/:chatId/turns`.
  *
- * The API stores every turn, so this hook keeps no summary and no compacted turn count. `routeChatId` names the chat to load on mount, and a null value starts an empty one. `askQuestion` opens the chat on the first question, appends a turn, reads the Server-Sent Events stream into it, and marks it done or error. Call it only when `isRunning` is false and the text is not blank; it reads the index of the new turn from the current length, and a second call in flight would write into the wrong turn.
+ * The API stores every turn, so this hook keeps no summary and no compacted turn count. `routeChatId` names the chat to load on mount, and a null value starts an empty one. `askQuestion` opens the chat on the first question, appends a turn, reads the Server-Sent Events stream into it, and marks it done or error. Call it only when `isRunning` and `isLoadingChat` are both false and the text is not blank; it reads the index of the new turn from the current length, and a call during a read would write into the wrong turn and leave `isLoadingChat` set.
  *
  * `usage` reports how full the chat is after the last answer, and is null until the first answer finishes.
  *
@@ -40,7 +40,7 @@ export function useOpenChat(
   const [openChatId, setOpenChatId] = useState(routeChatId);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(routeChatId !== null);
   const [loadFailure, setLoadFailure] = useState("");
   const [usage, setUsage] = useState<ContextUsage | null>(null);
   const latestReadId = useRef(0);

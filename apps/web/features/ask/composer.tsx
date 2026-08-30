@@ -13,6 +13,7 @@ export function Composer({
   onQuestionChange,
   onSubmit,
   isRunning,
+  isLoadingChat,
   modelIds,
   modelId,
   onModelIdChange,
@@ -22,6 +23,7 @@ export function Composer({
   onQuestionChange: (question: string) => void;
   onSubmit: () => void;
   isRunning: boolean;
+  isLoadingChat: boolean;
   modelIds: readonly string[];
   modelId: string;
   onModelIdChange: (modelId: string) => void;
@@ -65,7 +67,7 @@ export function Composer({
         <Button
           type="submit"
           variant="primary"
-          disabled={isRunning || question.trim() === ""}
+          disabled={isRunning || isLoadingChat || question.trim() === ""}
         >
           {isRunning ? "Answering" : "Ask"}
         </Button>
