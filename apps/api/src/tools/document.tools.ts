@@ -88,7 +88,7 @@ export class DocumentTools {
     return citations
       .map(
         (citation) =>
-          `[${citation.index}] ${[citation.externalTitle, ...citation.headingPath].join(" > ")}\n${citation.text}`,
+          `[${citation.index}] ${[citation.externalTitle, ...citation.headingPath].join(" > ")}\n${citation.externalUrl}\n${citation.text}`,
       )
       .join("\n\n");
   }
