@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import type { SourceDocument } from "@knowledgestack/shared/sources";
 
-import { formatTime } from "./format-time";
+import { formatTime } from "@/lib/format-time";
 import styles from "./sources.module.css";
 
 /** One document of a source: its title, the number of chunks it produced, and the time the last index pass wrote them. A source the person uploaded shows a remove button, which reads "Delete" once `isArmed` is true. */
