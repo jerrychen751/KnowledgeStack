@@ -46,6 +46,12 @@
   color: var(--ink-faint);
 }
 
+.checkMark {
+  flex: none;
+  width: 0.8125rem;
+  height: 0.8125rem;
+}
+
 .page {
   max-width: 60rem;
   margin: 0 auto;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type {
   CreateWorkspaceRequest,
@@ -27,6 +27,8 @@ export function WorkspacesPage(): ReactNode {
   const [workspaceName, setWorkspaceName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [armedId, setArmedId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copiedTimer = useRef<number | undefined>(undefined);
   const { notice, setNotice, busyMessage, isBusy, reportFailure, runRequest } = usePageRequest();
 
   const loadWorkspaces = useCallback(async () => {
@@ -55,11 +57,16 @@ export function WorkspacesPage(): ReactNode {
     [loadWorkspaces, runRequest],
   );
 
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
+
   const copyJoinCode = useCallback(
-    async (code: string) => {
+    async (workspaceId: string, code: string) => {
       try {
         await navigator.clipboard.writeText(code);
-        setNotice({ text: `The code ${code} is on the clipboard.`, failed: false });
+        setNotice(null);
+        setCopiedId(workspaceId);
+        window.clearTimeout(copiedTimer.current);
+        copiedTimer.current = window.setTimeout(() => setCopiedId(null), 2000);
       } catch {
         setNotice({ text: `Copy the code by hand: ${code}`, failed: true });
       }
@@ -96,7 +103,8 @@ export function WorkspacesPage(): ReactNode {
                     `${workspace.name} is open.`,
                   )
                 }
-                onCopyCode={() => void copyJoinCode(workspace.joinCode)}
+                isCopied={workspace.id === copiedId}
+                onCopyCode={() => void copyJoinCode(workspace.id, workspace.joinCode)}
                 onLeave={() =>
                   void write(
                     "Leaving the workspace",

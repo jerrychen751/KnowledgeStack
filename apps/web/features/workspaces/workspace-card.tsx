@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { Workspace } from "@knowledgestack/api-contract/workspaces";
 
 import { Button } from "@/components/button";
+import { CheckMark } from "@/components/check-mark";
 
 import styles from "./workspaces.module.css";
 
@@ -15,6 +16,7 @@ export function WorkspaceCard({
   armedId,
   onArm,
   onOpen,
+  isCopied,
   onCopyCode,
   onLeave,
 }: {
@@ -24,6 +26,7 @@ export function WorkspaceCard({
   armedId: string | null;
   onArm: (id: string | null) => void;
   onOpen: () => void;
+  isCopied: boolean;
   onCopyCode: () => void;
   onLeave: () => void;
 }): ReactNode {
@@ -71,8 +74,19 @@ export function WorkspaceCard({
       <div className={styles.cardFoot}>
         <p className={styles.codeLabel}>Join code</p>
         <code className={styles.code}>{workspace.joinCode}</code>
-        <button type="button" className={styles.copyButton} onClick={onCopyCode}>
-          Copy
+        <button
+          type="button"
+          className={`${styles.copyButton} ${isCopied ? styles.copyButtonDone : ""}`}
+          onClick={onCopyCode}
+        >
+          {isCopied ? (
+            <>
+              <CheckMark />
+              Copied
+            </>
+          ) : (
+            "Copy"
+          )}
         </button>
         {isActive ? (
           <span className={styles.cardLinks}>

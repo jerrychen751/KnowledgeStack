@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/button";
+import { CheckMark } from "@/components/check-mark";
 import { Label } from "@/components/label";
 
 import styles from "./mcp-tokens.module.css";
@@ -70,15 +71,20 @@ export function NewTokenPanel({
   ] as const;
 
   const [openTab, setOpenTab] = useState<(typeof tabs)[number]["key"]>("claude-code");
-  const [copyNotice, setCopyNotice] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const copiedTimer = useRef<number | undefined>(undefined);
   const command = tabs.find((tab) => tab.key === openTab)?.command ?? "";
+
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
 
   const copyCommand = async () => {
     try {
       await navigator.clipboard.writeText(command);
-      setCopyNotice("The command is on the clipboard.");
+      setCopyState("copied");
+      window.clearTimeout(copiedTimer.current);
+      copiedTimer.current = window.setTimeout(() => setCopyState("idle"), 2000);
     } catch {
-      setCopyNotice("Copy the command by hand.");
+      setCopyState("failed");
     }
   };
 
@@ -102,7 +108,7 @@ export function NewTokenPanel({
             className={`${styles.tab} ${tab.key === openTab ? styles.tabOpen : ""}`}
             onClick={() => {
               setOpenTab(tab.key);
-              setCopyNotice("");
+              setCopyState("idle");
             }}
           >
             {tab.label}
@@ -113,10 +119,19 @@ export function NewTokenPanel({
       <pre className={styles.command}>{command}</pre>
 
       <div className={styles.panelFoot}>
-        <Button variant="primary" onClick={() => void copyCommand()}>
-          Copy
+        <Button variant="primary" className={styles.copyButton} onClick={() => void copyCommand()}>
+          {copyState === "copied" ? (
+            <>
+              <CheckMark />
+              Copied
+            </>
+          ) : (
+            "Copy"
+          )}
         </Button>
-        {copyNotice === "" ? null : <span className={styles.copyNotice}>{copyNotice}</span>}
+        {copyState === "failed" ? (
+          <span className={styles.copyNotice}>Copy the command by hand.</span>
+        ) : null}
       </div>
 
       <dl className={styles.rawFields}>

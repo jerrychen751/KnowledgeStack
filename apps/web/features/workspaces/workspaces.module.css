@@ -91,11 +91,21 @@
 }
 
 .copyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3125rem;
+  min-width: 4.5rem;
   padding: 0.1875rem 0.375rem;
   color: var(--signal);
   font-size: 0.8125rem;
   text-decoration: underline;
   text-underline-offset: 0.16em;
+}
+
+.copyButtonDone {
+  cursor: default;
+  text-decoration: none;
 }
 
 .cardLinks {
