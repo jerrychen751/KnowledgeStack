@@ -80,10 +80,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 3001
-      UPLOAD_ROOT: /data/uploads
       DB_POOL_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@app-db:5432/${POSTGRES_DB}?schema=public
-    volumes:
-      - api-uploads:/data/uploads
     depends_on:
       api-migrate:
         condition: service_completed_successfully
@@ -126,4 +123,3 @@ volumes:
   # Leaving value blank allows Docker Compose to use sensible defaults
   app-db-data:
   tenant-db-data:
-  api-uploads:

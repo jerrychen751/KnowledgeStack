@@ -53,7 +53,7 @@ Three design choices matter most. The agent holds no write path to a business da
       write path  │                                   │  read path
   ┌───────────────▼──────────────┐   ┌────────────────▼────────────────┐
   │  SyncService                 │   │  AgentLoop                      │
-  │   FilesystemConnector        │   │   OpenAI Responses API          │
+  │   UploadConnector            │   │   OpenAI Responses API          │
   │   NotionConnector            │   │   ToolRegistry                  │
   │   ConfluenceConnector        │   │    search_document_chunks       │
   │   createChunks, 512 tokens   │   │    list_databases, list_tables  │
@@ -225,7 +225,6 @@ TENANT_POSTGRES_DB=
 | `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` | for Notion | The public integration from [My integrations](https://www.notion.so/my-integrations). |
 | `CONFLUENCE_CLIENT_ID`, `CONFLUENCE_CLIENT_SECRET` | for Confluence | The OAuth 2.0 (3LO) app from the [Atlassian developer console](https://developer.atlassian.com/console/myapps/). |
 | `WEB_APP_URL` | no | The origin of the web app. Defaults to `http://localhost:3000`. |
-| `UPLOAD_ROOT` | no | The directory that holds uploaded files. Defaults to `apps/api/.uploads`. |
 | `MCP_PUBLIC_URL` | no | The address an MCP client posts to. Defaults to `http://127.0.0.1:<PORT>`. Set it when a tunnel or a deployment puts the API behind another host. |
 
 Generate the encryption key:
@@ -295,7 +294,7 @@ KnowledgeStack/
 │   │       ├── chat/                   the agent loop, compaction, the SSE controller
 │   │       ├── chunking/               the Markdown-aware chunker
 │   │       ├── config/                 AppConfig, the startup check on the process variables
-│   │       ├── connectors/             filesystem, Notion, Confluence
+│   │       ├── connectors/             uploads, Notion, Confluence
 │   │       ├── database-connections/   one pg.Pool per database, read-only queries
 │   │       ├── documents/              the document and chunk repositories
 │   │       ├── embedding/              OpenAI embeddings and the token counter
