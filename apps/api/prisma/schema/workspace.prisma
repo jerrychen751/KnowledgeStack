@@ -16,6 +16,7 @@ model Workspace {
   memberships         WorkspaceMembership[]
   sessions            UserSession[]
   sources             Source[]
+  uploadedFiles       UploadedFile[]
 
   @@map("workspaces")
 }

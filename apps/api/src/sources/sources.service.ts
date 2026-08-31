@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, extname } from "node:path";
 
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 
@@ -9,11 +8,12 @@ import type {
   SaveUploadsResponse,
   Source,
   SourceDocument,
-  UploadedFile,
+  UploadFile,
 } from "@knowledgestack/api-contract/sources";
 
 import { OAuthRegistry } from "../auth/oauth.registry.js";
 import { isDeletableConnector } from "../connectors/connector.types.js";
+import { UploadedFileRepository } from "../connectors/uploaded-file.repository.js";
 import { isOAuthProvider, type OAuthProviderName } from "../auth/oauth.types.js";
 import { TokenService } from "../auth/token.service.js";
 import { EncryptionService } from "../encryption/encryption.service.js";
@@ -32,7 +32,7 @@ type PendingAuthorization = {
 
 @Injectable()
 export class SourcesService {
-  // The extensions the filesystem connector reads as text. It stores any other file as an unindexed attachment.
+  // The extensions an upload may carry. The upload connector reads the text of every file it stores.
   private readonly uploadFileExtensions = [
     ".csv",
     ".json",
@@ -53,12 +53,8 @@ export class SourcesService {
     private readonly sourceRepository: SourceRepository,
     private readonly syncService: SyncService,
     private readonly tokenService: TokenService,
+    private readonly uploadedFileRepository: UploadedFileRepository,
   ) {}
-
-  /** The directory the filesystem connector reads for one workspace. A second workspace never lists these files. */
-  private readUploadDirectory(workspaceId: string): string {
-    return resolve(process.env.UPLOAD_ROOT || ".uploads", workspaceId);
-  }
 
   async listSources(workspaceId: string): Promise<Source[]> {
     const sources = await this.sourceRepository.listSources(workspaceId);
@@ -88,12 +84,12 @@ export class SourcesService {
   }
 
   /**
-   * Report the upload directory and the state of each OAuth provider.
+   * Report the extensions an upload may carry and the state of each OAuth provider.
    *
    * A provider is configured when its client id and client secret are both present. The
    * missingVariables of an unconfigured provider names the variables to set.
    */
-  readConnectorStatus(workspaceId: string): ReadConnectorStatusResponse {
+  readConnectorStatus(): ReadConnectorStatusResponse {
     const providers = [
       SourceProvider.notion,
       SourceProvider.confluence,
@@ -103,25 +99,21 @@ export class SourcesService {
     }));
 
     return {
-      uploads: {
-        directory: this.readUploadDirectory(workspaceId),
-        fileExtensions: this.uploadFileExtensions,
-      },
+      uploads: { fileExtensions: this.uploadFileExtensions },
       providers,
     };
   }
 
   /**
-   * Write every uploaded file into the upload directory, then sync the directory.
+   * Store every uploaded file for this workspace, then sync the upload source that serves them.
    *
    * A file that carries the name of a stored file replaces it, and the sync pass re-embeds that document.
    * The method returns after the whole pass finishes, so the caller can read the new counts at once.
    */
   async saveUploads(
     workspaceId: string,
-    files: readonly UploadedFile[],
+    files: readonly UploadFile[],
   ): Promise<SaveUploadsResponse> {
-    const uploadDirectory = this.readUploadDirectory(workspaceId);
     const fileNames = files.map((file) => {
       const fileName = basename(file.name.trim());
       if (
@@ -142,16 +134,12 @@ export class SourcesService {
       return fileName;
     });
 
-    await mkdir(uploadDirectory, { recursive: true });
-    for (const [index, file] of files.entries()) {
-      await writeFile(join(uploadDirectory, fileNames[index]), file.text, "utf8");
-    }
-
-    const source = await this.sourceRepository.saveFilesystemSource(
+    await this.uploadedFileRepository.saveUploadedFiles(
       workspaceId,
-      uploadDirectory,
-      "Uploads",
+      files.map((file, index) => ({ fileName: fileNames[index], text: file.text })),
     );
+
+    const source = await this.sourceRepository.saveUploadSource(workspaceId);
     await this.syncService.sync(source.id);
 
     return { sourceId: source.id };
@@ -167,22 +155,6 @@ export class SourcesService {
   }
 
   /**
-   * Whether this source reads the upload directory of this workspace, the one directory this API writes.
-   *
-   * A filesystem source that reads any other path holds files this app did not create, such as a mounted
-   * host directory, so no delete route may unlink them.
-   */
-  private isManagedUploadDirectory(
-    workspaceId: string,
-    source: { provider: SourceProvider; externalId: string },
-  ): boolean {
-    return (
-      source.provider === SourceProvider.filesystem &&
-      source.externalId === this.readUploadDirectory(workspaceId)
-    );
-  }
-
-  /**
    * Delete one source with its documents and chunks, and delete the uploaded files behind it.
    *
    * The files go first. A failed delete then leaves rows whose files are gone, which the next sync pass
@@ -194,8 +166,8 @@ export class SourcesService {
       throw new NotFoundException("The source does not exist.");
     }
 
-    if (this.isManagedUploadDirectory(workspaceId, source)) {
-      await rm(source.externalId, { force: true, recursive: true });
+    if (source.provider === SourceProvider.upload) {
+      await this.uploadedFileRepository.deleteUploadedFiles(workspaceId);
     }
     await this.sourceRepository.deleteSource(workspaceId, sourceId);
   }
@@ -204,8 +176,7 @@ export class SourcesService {
    * Delete one uploaded file, and the document and chunks that index it.
    *
    * Only the uploads of this workspace go. A Notion or Confluence document returns on the next sync pass
-   * because the provider still serves it, and a filesystem source that reads any other directory holds
-   * files this app did not create.
+   * because the provider still serves it.
    */
   async deleteDocument(
     workspaceId: string,
@@ -220,14 +191,9 @@ export class SourcesService {
     if (document === null) {
       throw new NotFoundException("The document does not exist.");
     }
-    if (document.source.provider !== SourceProvider.filesystem) {
+    if (document.source.provider !== SourceProvider.upload) {
       throw new BadRequestException(
         `Delete this document in ${document.source.provider}, then sync the source.`,
-      );
-    }
-    if (!this.isManagedUploadDirectory(workspaceId, document.source)) {
-      throw new BadRequestException(
-        "This source reads a directory outside the uploads of this workspace, so its files stay.",
       );
     }
 

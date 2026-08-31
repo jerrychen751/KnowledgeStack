@@ -4,9 +4,9 @@ import { z } from "zod";
 
 import { startSignInResponseSchema } from "./auth.js";
 
-export const sourceProviderSchema = z.enum(["confluence", "filesystem", "notion"]);
+export const sourceProviderSchema = z.enum(["confluence", "notion", "upload"]);
 
-/** The system a source reads. `filesystem` reads the upload directory of one workspace. */
+/** The system a source reads. `upload` reads the files a person uploaded to one workspace. */
 export type SourceProvider = z.infer<typeof sourceProviderSchema>;
 
 export const sourceStatusSchema = z.enum(["active", "error", "reauth_required"]);
@@ -62,7 +62,6 @@ export type ListDocumentsResponse = z.infer<typeof listDocumentsResponseSchema>;
 
 export const readConnectorStatusResponseSchema = z.object({
   uploads: z.object({
-    directory: z.string(),
     fileExtensions: z.array(z.string()),
   }),
   providers: z.array(
@@ -81,7 +80,7 @@ export const startAuthorizationResponseSchema = startSignInResponseSchema;
 /** The body `GET /sources/connect/:provider` answers with. It carries the field of `StartSignInResponse`, because both routes send the browser to a provider for a grant. */
 export type StartAuthorizationResponse = z.infer<typeof startAuthorizationResponseSchema>;
 
-export const uploadedFileSchema = z
+export const uploadFileSchema = z
   .object(
     {
       name: z.string({ error: "Each file must carry a name string and a text string." }),
@@ -100,12 +99,12 @@ export const uploadedFileSchema = z
   });
 
 /** One file of an upload request. `text` holds the whole file, of 1000000 characters or fewer. An empty file is valid and indexes to zero chunks. */
-export type UploadedFile = z.infer<typeof uploadedFileSchema>;
+export type UploadFile = z.infer<typeof uploadFileSchema>;
 
 export const saveUploadsRequestSchema = z.object(
   {
     files: z
-      .array(uploadedFileSchema, { error: "files must be a non-empty array." })
+      .array(uploadFileSchema, { error: "files must be a non-empty array." })
       .min(1, "files must be a non-empty array.")
       .max(20, "files must hold 20 entries or fewer."),
   },

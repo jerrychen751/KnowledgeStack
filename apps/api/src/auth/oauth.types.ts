@@ -1,6 +1,6 @@
 import { SourceProvider } from "../generated/prisma/enums.js";
 
-// The providers that authenticate through OAuth. The filesystem connector reads a local path and holds no credential.
+// The providers that authenticate through OAuth. The upload connector reads the uploaded files of a workspace and holds no credential.
 export type OAuthProviderName =
   | typeof SourceProvider.confluence
   | typeof SourceProvider.notion;

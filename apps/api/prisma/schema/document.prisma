@@ -1,6 +1,6 @@
 // PostgreSQL rejects a provider value until its enum migration commits.
 enum SourceProvider {
-  filesystem
+  upload
   notion
   confluence
 }
@@ -21,7 +21,7 @@ enum SourceStatus {
 model Source {
   id                  String         @id @default(cuid())
   provider            SourceProvider
-  // The provider's id for the content container: a Notion workspace_id, an Atlassian cloudId, or a filesystem root path
+  // The provider's id for the content container: a Notion workspace_id, an Atlassian cloudId, or the workspace id of an upload source
   externalId          String         @map("external_id")
   // A Confluence space id. The other providers leave this value null.
   externalSpaceId     String?        @map("external_space_id")
@@ -38,14 +38,14 @@ model Source {
   workspaceId String    @map("workspace_id")
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  // One OAuth credential can supply several Confluence space sources. A filesystem source has no credential.
+  // One OAuth credential can supply several Confluence space sources. An upload source has no credential.
   credentialId String?           @map("credential_id")
   credential   SourceCredential? @relation(fields: [credentialId, workspaceId, provider], references: [id, workspaceId, provider], onDelete: Restrict)
   documents    Document[]
 
   @@unique([workspaceId, provider, credentialId], map: "sources_notion_identity_key", where: raw("\"provider\" = 'notion'"))
   @@unique([workspaceId, provider, externalId, externalSpaceId], map: "sources_confluence_identity_key", where: raw("\"provider\" = 'confluence' AND \"external_space_id\" IS NOT NULL"))
-  @@unique([workspaceId, provider, externalId], map: "sources_filesystem_identity_key", where: raw("\"provider\" = 'filesystem'"))
+  @@unique([workspaceId, provider, externalId], map: "sources_upload_identity_key", where: raw("\"provider\" = 'upload'"))
   @@index([workspaceId])
   @@index([credentialId, workspaceId, provider])
   @@map("sources")
@@ -77,6 +77,20 @@ model SourceCredential {
   @@unique([id, workspaceId, provider])
   @@index([workspaceId])
   @@map("source_credentials")
+}
+
+model UploadedFile {
+  id        String   @id @default(cuid())
+  fileName  String   @map("file_name")
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  workspaceId String    @map("workspace_id")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, fileName])
+  @@map("uploaded_files")
 }
 
 model Document {

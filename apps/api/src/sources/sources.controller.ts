@@ -44,8 +44,8 @@ export class SourcesController {
   }
 
   @Get("connectors")
-  readConnectorStatus(@ActiveWorkspaceId() workspaceId: string): ReadConnectorStatusResponse {
-    return this.sourcesService.readConnectorStatus(workspaceId);
+  readConnectorStatus(): ReadConnectorStatusResponse {
+    return this.sourcesService.readConnectorStatus();
   }
 
   @Get(":sourceId/documents")
@@ -101,7 +101,7 @@ export class SourcesController {
     return { status: "ok" };
   }
 
-  /** Delete one uploaded file with the document and chunks that index it. Filesystem sources only. */
+  /** Delete one uploaded file with the document and chunks that index it. Upload sources only. */
   @Delete(":sourceId/documents/:documentId")
   @HttpCode(200)
   async deleteDocument(

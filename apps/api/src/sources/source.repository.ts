@@ -80,18 +80,14 @@ export class SourceRepository {
   }
 
   /**
-   * Return the filesystem source that reads `rootDirectory`, and create it when it is absent.
+   * Return the one upload source of this workspace, and create it when it is absent.
    *
    * A partial unique index guards the pair in Postgres, but Prisma cannot target a partial index in an
    * upsert, so the read and the write are separate statements.
    */
-  async saveFilesystemSource(
-    workspaceId: string,
-    rootDirectory: string,
-    externalDisplayName: string,
-  ): Promise<{ id: string }> {
+  async saveUploadSource(workspaceId: string): Promise<{ id: string }> {
     const existing = await this.prisma.source.findFirst({
-      where: { workspaceId, provider: "filesystem", externalId: rootDirectory },
+      where: { workspaceId, provider: "upload" },
       select: { id: true },
     });
     if (existing !== null) {
@@ -101,9 +97,9 @@ export class SourceRepository {
     return this.prisma.source.create({
       data: {
         workspaceId,
-        provider: "filesystem",
-        externalId: rootDirectory,
-        externalDisplayName,
+        provider: "upload",
+        externalId: workspaceId,
+        externalDisplayName: "Uploads",
       },
       select: { id: true },
     });
@@ -215,22 +211,22 @@ export class SourceRepository {
     return deletion.count;
   }
 
-  /** Return one source of this workspace, or null. `externalId` is the root directory of a filesystem source. */
+  /** Return one source of this workspace, or null. */
   async findSource(
     workspaceId: string,
     sourceId: string,
-  ): Promise<{ provider: SourceProvider; externalId: string } | null> {
+  ): Promise<{ provider: SourceProvider } | null> {
     return this.prisma.source.findFirst({
       where: { id: sourceId, workspaceId },
-      select: { provider: true, externalId: true },
+      select: { provider: true },
     });
   }
 
   /**
    * Return one document of one source of this workspace, or null.
    *
-   * `externalId` on the document is the id the source assigns, and `externalId` on the source is the root
-   * directory of a filesystem source. One query carries both, so no source can change between two reads.
+   * `externalId` on the document is the id the source assigns. One query carries it with the provider of
+   * the source, so no source can change between two reads.
    */
   async findDocument(
     workspaceId: string,
@@ -238,13 +234,13 @@ export class SourceRepository {
     documentId: string,
   ): Promise<{
     externalId: string;
-    source: { provider: SourceProvider; externalId: string };
+    source: { provider: SourceProvider };
   } | null> {
     return this.prisma.document.findFirst({
       where: { id: documentId, sourceId, source: { workspaceId } },
       select: {
         externalId: true,
-        source: { select: { provider: true, externalId: true } },
+        source: { select: { provider: true } },
       },
     });
   }

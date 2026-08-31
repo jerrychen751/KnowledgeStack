@@ -18,8 +18,8 @@ type ConnectorSettings =
     }
   | {
       id: string;
-      provider: typeof SourceProvider.filesystem;
-      rootDirectory: string;
+      provider: typeof SourceProvider.upload;
+      workspaceId: string;
     };
 
 @Injectable()
@@ -37,6 +37,7 @@ export class SourceSyncRepository {
         externalId: true,
         externalSpaceId: true,
         config: true,
+        workspaceId: true,
       },
     });
 
@@ -63,11 +64,11 @@ export class SourceSyncRepository {
           ),
           spaceId: source.externalSpaceId,
         };
-      case SourceProvider.filesystem:
+      case SourceProvider.upload:
         return {
           id: source.id,
           provider: source.provider,
-          rootDirectory: source.externalId,
+          workspaceId: source.workspaceId,
         };
     }
   }

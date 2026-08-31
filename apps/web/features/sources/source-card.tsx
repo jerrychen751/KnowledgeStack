@@ -50,7 +50,7 @@ export function SourceCard({
           {armedId === source.id ? (
             <>
               <p className={styles.confirm}>
-                {source.provider === "filesystem"
+                {source.provider === "upload"
                   ? "Delete this source and every file uploaded to it?"
                   : `Remove this source? Your pages stay in ${source.provider}.`}
               </p>
@@ -81,14 +81,14 @@ export function SourceCard({
       {documents.length === 0 ? null : (
         <div
           className={`${styles.documents} ${
-            source.provider === "filesystem" ? styles.documentsRemovable : ""
+            source.provider === "upload" ? styles.documentsRemovable : ""
           }`}
         >
           {documents.map((document) => (
             <DocumentRow
               key={document.id}
               document={document}
-              isRemovable={source.provider === "filesystem"}
+              isRemovable={source.provider === "upload"}
               isArmed={armedId === document.id}
               isBusy={isBusy}
               onRemoveClick={() => {

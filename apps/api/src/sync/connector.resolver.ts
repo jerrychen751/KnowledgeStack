@@ -39,10 +39,10 @@ export class ConnectorResolver {
           spaceIds: [settings.spaceId],
         });
       }
-      case SourceProvider.filesystem:
+      case SourceProvider.upload:
         return this.connectorFactory.createConnector({
           provider: settings.provider,
-          rootDirectory: settings.rootDirectory,
+          workspaceId: settings.workspaceId,
         });
     }
   }
