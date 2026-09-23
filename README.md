@@ -1,35 +1,35 @@
 # KnowledgeStack
 
-KnowledgeStack answers a question from the wiki pages and the SQL databases of one team, and it shows the document chunk and the SQL statement behind every sentence.
+On a new team, even a simple question can be hard to answer when you don't know where the information lives. A design decision might be in Confluence, a setup guide in Notion, and the meaning of a database field in a wiki page. A new hire may have to ask one teammate, wait to be sent to another, then repeat the question to a third. That delay stretches out onboarding and interrupts the people who know where everything lives.
+
+KnowledgeStack gives the team one place to ask those questions. In a workspace, they can upload documents, connect Notion or Confluence, and register PostgreSQL databases. The agent searches those documents for relevant chunks (short pieces of text), then uses them to write an answer with citations. That's retrieval-augmented generation (RAG). When a question also needs numbers, the agent reads the database schema and sample rows, uses the docs to interpret the fields, writes a read-only SQL query, and shows the query and results. This text-to-SQL step connects what the documentation says to the data it describes.
 
 <p align="center">
-  <img src="docs/demo.gif" alt="One question end to end: the streamed tool steps, the citation rail, the returned rows and the SQL below the answer." width="900">
+  <img src="docs/demo.gif" alt="KnowledgeStack answering a question with document citations, database rows, and the SQL it ran." width="900">
 </p>
 
 <p align="center">
-  <em>One question against the demo fixture. The agent searches the wiki, reads the live schema, writes one read-only SELECT, and cites the chunk behind every sentence.</em>
+  <em>The demo shows the agent finding a wiki explanation, checking the database, and showing the sources behind its answer.</em>
 </p>
 
-## Overview
+## A question that needs both docs and data
 
-A company splits its knowledge in two. The wiki page explains that `cst_typ_cd = '04'` marks an intercompany account and that `unit_px` is hundredths of a cent; the database holds the order rows. Neither half answers a revenue question alone, and an analyst who queries the tables without the wiki gets a number that looks right and is 100 times too high.
+Suppose a new teammate asks, "What was net revenue by quarter in 2025?" The demo database holds the order rows, but the wiki explains two rules needed to read them: `cst_typ_cd = '04'` marks an intercompany account, and `unit_px` is stored in hundredths of a cent. A query that misses the unit rule can return a believable number that is 100 times too high.
 
-KnowledgeStack joins the two halves in one reply. A team opens a workspace, uploads or connects its documentation, and registers its databases. The agent searches the embedded document chunks, reads the live schema and sample rows of a registered database, writes one read-only SELECT, and returns the answer with a numbered citation for each sentence and the matched rows below it.
+KnowledgeStack searches the wiki, checks the live database schema and sample rows, then writes and runs a read-only query. It shows numbered document citations beside the answer and the SQL and rows below it. A teammate can follow the same path to verify the result.
 
-Three design choices matter most. The agent holds no write path to a business database, because five checks stand between the model and the database and each one alone stops a write. Every tool is a decorated method that one startup scan discovers, so the browser agent and any future protocol server call the same code. The answer streams as Server-Sent Events, so the browser draws each tool step, each citation and each result table while the model still writes.
+To try this example locally, follow [Getting started](#getting-started).
 
-## Features
+## What you can do
 
-- **One workspace per team.** Google OAuth signs a person in. An eight-character join code adds a member. A workspace owns its sources, documents, chunks, databases and chats, and one question reads one workspace only.
-- **Three document sources.** Drag files onto the page, or connect Notion or Confluence through OAuth 2.0. One callback route serves every provider, because the state value carries the provider name.
-- **Incremental sync.** A pass lists the documents of a source, re-indexes only the ones the provider edited after the last index, and deletes a stored row only after the provider confirms the document is gone.
-- **Cited answers.** A search returns the six nearest chunks. The answer marks each used chunk as `[n]`. The rail beside the answer shows that chunk, its heading path and its cosine similarity, and a click on `[n]` opens it.
-- **Text to SQL under a read-only contract.** The agent reads the tables, columns, constraints and five sample rows, then runs one SELECT inside `BEGIN READ ONLY` with a 60 second timeout and a 1000 row ceiling.
-- **Structure-aware chunking.** The chunker parses Markdown and keeps the heading path of every chunk. It packs sibling sections up to 512 tokens, splits a long table by row and repeats its header, and re-fences each piece of a split code block.
-- **Automatic compaction.** A chat that reaches 100 turns or 256000 tokens summarizes its oldest turns, keeps the newest tenth as written, and reports the new context size to the browser.
-- **An MCP server.** One route exposes the same five tools to an outside agent, such as Claude Code. A workspace-scoped token authorizes each call, and `/settings/mcp-tokens` prints the command that registers the server in the client the person runs.
-- **Encrypted secrets.** AES-256-GCM covers every OAuth token and every database password before it reaches Postgres. The session cookie is stored as a SHA-256 hash, so a database dump signs nobody in.
-- **A demo fixture with 20 known traps.** 24 tables of a fictional semiconductor supplier, and 13 wiki pages that are the only place its codes, units and join paths are written down.
+- Sign in with Google, create a workspace, or join one with an eight-character code. Each workspace keeps its own sources, documents, database connections, and chats, and a question reads only that workspace.
+- Upload files or connect Notion and Confluence. A sync updates documents that changed and checks that a missing page was actually deleted before removing it.
+- Ask a question and open the numbered citations beside the answer to see the document chunks the agent used.
+- Connect a PostgreSQL database with a read-only role. The agent can inspect tables and sample rows, then run one SELECT with a 60 second timeout and a 1000 row limit.
+- Continue a long conversation. When it reaches 100 turns or 256000 tokens, the app summarizes older turns and keeps the newest turns in full.
+- Use the same five tools from an outside agent through the MCP (Model Context Protocol) server. A workspace token authorizes each call, and `/settings/mcp-tokens` shows the client registration command.
+- OAuth tokens and database passwords are encrypted with AES-256-GCM. The database stores only SHA-256 hashes of session tokens.
+- Explore the demo fixture: 24 tables, 13 wiki pages, and 20 traps that can make an SQL result look plausible but wrong unless the agent reads the wiki.
 
 ## Architecture
 
@@ -70,9 +70,9 @@ Three design choices matter most. The agent holds no write path to a business da
   └──────────────────────────────────┘   └─────────────────────────────┘
 ```
 
-The browser reaches one origin. Next.js serves every page and forwards every `/api/...` call to the API, so the API needs no CORS rule and publishes no port in a deployment. `SessionGuard` runs under `APP_GUARD`, so a route without `@Public()` never runs for a signed-out browser, and the `ActiveWorkspaceId` decorator answers 403 when the browser opened no workspace. Two paths then split at the API. The write path turns a document into rows of `document_chunks`. The read path turns a question into an answer over those rows and over the registered databases.
+The browser talks to Next.js, which forwards `/api/...` requests to NestJS and streams the answer back. One path turns uploaded or connected documents into searchable `document_chunks`. The other retrieves those chunks and, when needed, queries a registered business database. The application database keeps workspaces, documents, and chats separate from those business databases.
 
-## Tech Stack
+## Tech stack
 
 - **Frontend:** Next.js 16 (App Router), React 19, TypeScript 6, CSS Modules, IBM Plex
 - **Backend:** NestJS 11, Node.js 24, Express
@@ -81,9 +81,11 @@ The browser reaches one origin. Next.js serves every page and forwards every `/a
 - **Contract:** Zod 4 schemas in one workspace package, which both apps import and which derive every wire type
 - **Infrastructure:** Docker Compose, pnpm workspaces, GitHub Actions
 
-## How It Works
+## How it works
 
-### To index a document
+There are two paths through the app. Adding a document makes its contents searchable. Asking a question retrieves relevant chunks and can also query a database.
+
+### When you add a document
 
 ```
   a file, a Notion page, or a Confluence page
@@ -101,14 +103,14 @@ The browser reaches one origin. Next.js serves every page and forwards every `/a
   document_chunks rows, each with a vector(1536) under an HNSW cosine index
 ```
 
-1. The person uploads a file, or grants access to Notion or Confluence. The grant creates one source per Confluence space, and the sources page runs the first pass by itself.
+1. The person uploads a file, or grants access to Notion or Confluence. One OAuth callback serves both providers; its state identifies the provider. The grant creates one source per Confluence space, and the sources page runs the first pass by itself.
 2. `SyncService` records the pass start time, then reads the documents of the source one page at a time.
 3. Each listed document writes its metadata and takes the pass start time in `last_seen_at`.
 4. A document re-indexes only when the database holds no index time for it, or when the provider edited it after that time. A re-index replaces every chunk of that document.
-5. The chunker prepends the document title and the heading path to each chunk before it embeds, so a chunk that reads "A member vests after three years" still carries the section it came from.
+5. The chunker keeps the document title and heading path with each piece of text, so a line such as "A member vests after three years" still carries its section. It packs sibling sections up to 512 tokens, splits long tables by row while repeating their headers, and re-fences split code blocks.
 6. After the last page, the pass reads every document it did not stamp and asks the provider about each one. It deletes only the ones the provider reports gone, because a listing that omits a live page must not delete it.
 
-### To answer a question
+### When you ask a question
 
 1. The browser posts the question. The API sends the stream headers before the first search, so the browser must treat a stream that ends without a `done` frame as a failure.
 2. `CompactionService` measures the chat. A chat over either limit compacts first, and the browser receives the notes and the new context size.
@@ -116,10 +118,10 @@ The browser reaches one origin. Next.js serves every page and forwards every `/a
 4. The model calls `search_document_chunks`. The API embeds the query with the same model that embedded the chunks, then ranks every chunk of that workspace by cosine distance and returns the nearest six.
 5. For a question about numbers, the model calls `list_databases`, then `list_tables`, then `describe_tables`. The last one returns the columns, the primary key, the foreign keys and five live sample rows. A name such as `cst_typ_cd` and an empty column comment state nothing; the sample rows state what the values look like.
 6. The model writes one SELECT and calls `execute_sql`. The API validates it, wraps it in `SELECT * FROM (...) AS query LIMIT 1000`, and runs it in a read-only transaction.
-7. Every fault the model itself can make returns a correction instead of an error. A tool name that does not exist, arguments that are not JSON, a table that the database does not hold: each one answers with the text the model must read, and the model chooses again inside the same answer.
-8. The API streams each piece of the answer text as it arrives. The answer marks each used chunk as `[n]`, the citation rail draws that chunk, and the result table draws below the tool steps.
+7. If the model calls a missing tool, sends malformed arguments, or names a table that does not exist, the tool replies with a correction so the model can try again in the same answer.
+8. The API streams tool steps, citations, rows, and answer text through Server-Sent Events as they arrive. Each used document chunk gets a `[n]` marker. The citation rail shows the chunk, its heading path, and its cosine similarity, and clicking the marker opens it.
 
-## Technical Decisions
+## Design decisions
 
 ### Why PostgreSQL holds the vectors
 
@@ -146,9 +148,11 @@ The role that the workspace registers is the check that must hold, because it is
 
 `apps/web/app/api/[...path]/route.ts` forwards every `/api` call to `API_INTERNAL_URL` and passes the session cookie through unread. The browser sees one origin, so the API needs no CORS rule, sets no cross-site cookie, and can stay private to the Docker network in a deployment. The forwarder returns `response.body` instead of reading it, which is what keeps the Server-Sent Event stream flowing through Next.js instead of buffering until the answer ends.
 
+On the API side, `SessionGuard` runs under `APP_GUARD`. A route without `@Public()` requires a signed-in person, and `ActiveWorkspaceId` returns 403 when no workspace is selected.
+
 ### Why a tool is a decorated method
 
-`ToolRegistry` walks every provider of every active module at startup and collects each method that carries `@Tool`. The declaration holds the name, the description, the JSON Schema of the arguments, and the function that builds the browser display text. Two consequences follow. A new tool is one method in one service and no registration list to update. And any second caller, such as a protocol server, reports the same declarations and reaches the same methods, so the browser agent and that server can never drift.
+`ToolRegistry` walks every provider of every active module at startup and collects each method that carries `@Tool`. The declaration holds the name, the description, the JSON Schema of the arguments, and the function that builds the browser display text. Adding a tool takes one method in one service, without a separate registration list. An outside client reaches those same methods, so it sees the same tool definitions as the browser agent.
 
 ### How a sync pass deletes a document without losing a live one
 
@@ -174,7 +178,7 @@ One concept carries one word from the Postgres column to the button label. The n
 
 A per-provider file is named `<provider>.<role>.ts`, such as `notion.connector.ts` and `notion.oauth.ts`. A file that every provider shares is named `connector.<role>.ts`.
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
@@ -200,7 +204,7 @@ test -e apps/api/.env || cp apps/api/.env.example apps/api/.env
 test -e apps/web/.env || cp apps/web/.env.example apps/web/.env
 ```
 
-### Environment Variables
+### Environment variables
 
 `.env` in the repository root holds the six values that Docker Compose reads to create the two containers.
 
@@ -274,14 +278,14 @@ pnpm docker:down             # stop the services and keep the data
 
 ## Testing
 
-The repository has no unit test suite. Two other checks run instead, and both run in CI on every push and pull request.
+The repository has no unit test suite. CI checks the types, build, and running containers on every push and pull request:
 
-- **The type and build check.** `prisma validate`, `prisma generate`, `pnpm typecheck` across every package, then `pnpm build`. The Zod schemas in `packages/api-contract` derive every request and response type, so a contract change that one app does not follow fails this job.
-- **The container check.** GitHub Actions builds every image, starts the full Compose stack, and calls `/health/live`, `/health/ready` and the web `/health` route. It then calls the API readiness route from inside the web container, which proves the internal network path that every browser request uses.
+- It runs `prisma validate`, `prisma generate`, `pnpm typecheck` across every package, then `pnpm build`. The Zod schemas in `packages/api-contract` derive every request and response type, so a contract change that one app does not follow fails this job.
+- It builds every image, starts the full Compose stack, and calls `/health/live`, `/health/ready`, and the web `/health` route. It then calls the API readiness route from inside the web container to check the network path that browser requests use.
 
 The seed fixture is the correctness check for the agent. `seed-data/README.md` lists 20 traps that are real in the data and that only the wiki resolves, such as `unit_px` in hundredths of a cent, `del_flg = 'Y'` rows that survive, and an effective-dated territory bridge. An agent that writes SQL without retrieval returns a plausible number for each one, and the number is wrong.
 
-## Project Structure
+## Project structure
 
 ```
 KnowledgeStack/
@@ -319,20 +323,18 @@ KnowledgeStack/
 └── docker-compose.yml
 ```
 
-Three points are not obvious from the tree.
-
 - `apps/api/src/generated/prisma/` is not in Git. `pnpm prisma:generate` writes it, so run that command before the first typecheck.
 - The Prisma schema is split into five files under `prisma/schema/`. `base.prisma` holds the datasource and the generator, which a split schema requires.
 - `apps/api/prisma.config.ts` is the one file besides `main.ts` that loads dotenv, because the Prisma CLI starts as its own process.
 
-## Future Improvements
+## Future improvements
 
-- **A scheduled sync.** A pass runs today only when a person uploads a file or presses Sync. A scheduler would keep each source current without a click.
-- **Attachment text.** A PDF indexes as metadata and no chunks, because no connector returns the text of a binary file. A document converter such as Docling would return that text.
-- **More database engines.** The schema already carries `MYSQL` and `MONGODB`, and only the PostgreSQL driver is written.
-- **An editable SQL preview.** The browser shows the statement after the run. Showing it before the run would let an analyst read and correct the statement first.
-- **Hybrid retrieval.** A search ranks by cosine distance alone. Adding keyword scoring and a reranking pass would help a question that names an exact code such as `ord_typ_cd`.
-- **Parallel tool calls.** The loop runs each call of one round in sequence. Four independent `describe_tables` calls could run at once.
+- Sync runs when someone uploads a file or presses Sync. A scheduler could keep each source current without a click.
+- A PDF currently adds metadata but no searchable text, because the connectors do not extract text from binary files. A converter such as Docling could supply that text.
+- The schema includes `MYSQL` and `MONGODB`, but only PostgreSQL has a driver.
+- The browser shows SQL after it runs. An editable preview would let someone check and correct it first.
+- Document search uses cosine distance alone. Keyword scoring and reranking could help with exact codes such as `ord_typ_cd`.
+- The agent runs tool calls in sequence. Independent calls, such as several `describe_tables` requests, could run in parallel.
 
 ## License
 
