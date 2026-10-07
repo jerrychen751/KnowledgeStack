@@ -41,7 +41,7 @@ export function useChatList(): {
           return false;
         }
 
-        setListFailure(error instanceof Error ? error.message : "The chat did not delete.");
+        setListFailure(error instanceof Error ? error.message : "The chat could not be deleted.");
         await refreshChats();
 
         return false;

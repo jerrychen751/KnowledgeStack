@@ -17,12 +17,10 @@ import styles from "./mcp-tokens.module.css";
  * person whose client is missing still needs both.
  */
 export function NewTokenPanel({
-  name,
   secret,
   serverUrl,
   onDismiss,
 }: {
-  name: string;
   secret: string;
   serverUrl: string;
   onDismiss: () => void;
@@ -92,9 +90,10 @@ export function NewTokenPanel({
     <section className={styles.panel}>
       <div className={styles.panelHead}>
         <div>
-          <Label as="p">{name} is ready</Label>
+          <Label as="p">Your MCP token is ready</Label>
           <p className={styles.panelWarning}>
-            Run the command for your client. A reload never shows this token again.
+            Copy the command and run it in your terminal. You can't see this token again after you click
+            Done or leave this page.
           </p>
         </div>
         <Button onClick={onDismiss}>Done</Button>

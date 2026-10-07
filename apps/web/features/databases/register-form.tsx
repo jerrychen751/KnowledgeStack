@@ -99,9 +99,9 @@ export function RegisterForm({
 
       <div className={styles.formFoot}>
         <p className={styles.formNote}>
-          The agent reads the description to choose between two databases, and it runs every statement as
-          the role you give here. Register a read-only role. Send a name the workspace already holds to
-          correct its credentials.
+          The agent reads the description to decide which database to query. It runs every statement as
+          the user you enter here, so use a read-only role. To change a database's credentials, register it
+          again with the same name.
         </p>
         <Button type="submit" variant="primary" disabled={isBusy || isIncomplete}>
           Register

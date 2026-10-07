@@ -60,18 +60,17 @@ export function McpTokensPage(): ReactNode {
         setArmedId(null);
         await loadMcpTokens();
       },
-      `${tokenName} is revoked. Any client that holds it now gets 401.`,
+      `${tokenName} is revoked. Any client still using it now gets a 401 error.`,
     );
 
   return (
     <PageLayout
       title="MCP Tokens"
-      subtitle="A token lets an outside agent, such as Claude Code, call the tools of this workspace. It reads the open workspace and no other."
+      subtitle="A token lets an outside agent, such as Claude Code, use this workspace's tools. Each token works only with the workspace that was open when you created it."
       notice={notice}
     >
       {newToken === null ? null : (
         <NewTokenPanel
-          name={newToken.mcpToken.name}
           secret={newToken.secret}
           serverUrl={newToken.serverUrl}
           onDismiss={() => setNewToken(null)}
@@ -108,7 +107,7 @@ export function McpTokensPage(): ReactNode {
         aside={isBusy ? <p className={styles.busy}>{busyMessage}</p> : null}
       >
         {mcpTokens.length === 0 ? (
-          <EmptyState>This workspace has no MCP token yet.</EmptyState>
+          <EmptyState>No MCP tokens yet.</EmptyState>
         ) : (
           mcpTokens.map((mcpToken) => (
             <McpTokenCard

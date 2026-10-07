@@ -84,7 +84,7 @@ export function DatabasesPage(): ReactNode {
             throw new Error(body.message);
           }
         },
-        `${databaseConnection.name} answered.`,
+        `Connected to ${databaseConnection.name}.`,
       ),
     [write],
   );
@@ -92,7 +92,7 @@ export function DatabasesPage(): ReactNode {
   return (
     <PageLayout
       title="Databases"
-      subtitle="The agent queries these databases to answer a question, and reads the rows back into the answer."
+      subtitle="The agent queries these databases to answer questions and puts the results in its answers."
       notice={notice}
     >
       <Section
@@ -100,7 +100,7 @@ export function DatabasesPage(): ReactNode {
         aside={isBusy ? <p className={styles.busy}>{busyMessage}</p> : null}
       >
         {databaseConnections.length === 0 ? (
-          <EmptyState>No database yet. Register one below.</EmptyState>
+          <EmptyState>No databases yet. Register one below.</EmptyState>
         ) : (
           databaseConnections.map((databaseConnection) => (
             <ConnectionCard

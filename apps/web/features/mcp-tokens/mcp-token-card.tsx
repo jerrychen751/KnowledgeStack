@@ -41,10 +41,10 @@ export function McpTokenCard({
           {armedId === mcpToken.id ? (
             <>
               <Button disabled={isBusy} onClick={onDelete}>
-                Revoke for good
+                Revoke token
               </Button>
               <Button disabled={isBusy} onClick={() => onArm(null)}>
-                Keep
+                Cancel
               </Button>
             </>
           ) : (

@@ -116,7 +116,7 @@ export class SourcesController {
         throw error;
       }
       throw new BadGatewayException(
-        error instanceof Error ? error.message : "The file did not delete.",
+        error instanceof Error ? error.message : "The file could not be deleted.",
       );
     }
 

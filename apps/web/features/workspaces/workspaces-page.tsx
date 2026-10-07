@@ -77,7 +77,7 @@ export function WorkspacesPage(): ReactNode {
   return (
     <PageLayout
       title="Workspaces"
-      subtitle="A workspace holds its own sources, documents and chunks. A question reads the open workspace and no other."
+      subtitle="Each workspace keeps its own sources, documents and chunks. Questions search only the workspace that's open."
       notice={notice}
     >
       <Section
@@ -167,7 +167,7 @@ export function WorkspacesPage(): ReactNode {
                 sendJson("/api/workspaces/join", "POST", {
                   code: joinCode,
                 } satisfies JoinWorkspaceRequest),
-              "You joined the workspace, and it is open.",
+              "You joined the workspace. It's open now.",
             ).then((joined) => {
               if (joined) {
                 setJoinCode("");
