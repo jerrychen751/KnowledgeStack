@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import type {
   CreateWorkspaceRequest,
   JoinWorkspaceRequest,
+  LeaveWorkspaceRequest,
   ListWorkspacesResponse,
   Workspace,
 } from "@knowledgestack/api-contract/workspaces";
@@ -108,9 +109,24 @@ export function WorkspacesPage(): ReactNode {
                 onLeave={() =>
                   void write(
                     "Leaving the workspace",
-                    () => sendJson(`/api/workspaces/${workspace.id}/membership`, "DELETE"),
-                    `You left ${workspace.name}. Every MCP token you made for it is revoked.`,
-                  ).then(() => setArmedId(null))
+                    () =>
+                      sendJson(`/api/workspaces/${workspace.id}/membership`, "DELETE", {
+                        isLastMember: workspace.memberCount === 1,
+                      } satisfies LeaveWorkspaceRequest),
+                    workspace.memberCount === 1
+                      ? `You left ${workspace.name}. You were its last member, so it is deleted.`
+                      : `You left ${workspace.name}. Every MCP token you made for it is revoked.`,
+                  ).then((left) => {
+                    if (left) {
+                      setArmedId(null);
+                      return;
+                    }
+
+                    // A refused leave keeps the card armed, and the fresh member count gives it the warning that now applies.
+                    loadWorkspaces().catch((error: unknown) =>
+                      reportFailure(error, "The workspaces did not load."),
+                    );
+                  })
                 }
               />
             ))}

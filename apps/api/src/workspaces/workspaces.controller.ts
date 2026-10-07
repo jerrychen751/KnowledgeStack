@@ -14,6 +14,7 @@ import type { StatusResponse } from "@knowledgestack/api-contract/http";
 import {
   createWorkspaceRequestSchema,
   joinWorkspaceRequestSchema,
+  leaveWorkspaceRequestSchema,
   type CreateWorkspaceResponse,
   type JoinWorkspaceResponse,
   type ListWorkspacesResponse,
@@ -87,9 +88,19 @@ export class WorkspacesController {
   @HttpCode(200)
   async leaveWorkspace(
     @Param("workspaceId") workspaceId: string,
+    @Body() body: unknown,
     @CurrentSession() session: RequestSession,
   ): Promise<StatusResponse> {
-    await this.workspacesService.leaveWorkspace(session.userId, workspaceId);
+    const parsed = leaveWorkspaceRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues[0].message);
+    }
+
+    await this.workspacesService.leaveWorkspace(
+      session.userId,
+      workspaceId,
+      parsed.data.isLastMember,
+    );
 
     return { status: "ok" };
   }

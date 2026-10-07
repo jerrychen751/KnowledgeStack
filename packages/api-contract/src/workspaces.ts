@@ -50,6 +50,16 @@ export const joinWorkspaceRequestSchema = z.object(
 /** The body `POST /workspaces/join` reads. The API drops every character outside the join-code alphabet before it compares, so "k7qw-2m4d" and "K7QW2M4D" name one workspace. */
 export type JoinWorkspaceRequest = z.infer<typeof joinWorkspaceRequestSchema>;
 
+// `isLastMember` repeats what the page told the person before they confirmed, so the API can answer 409 when the member count changed and leaving would now delete, or no longer delete, the workspace.
+export const leaveWorkspaceRequestSchema = z.object(
+  {
+    isLastMember: z.boolean({ error: "isLastMember must be true or false." }),
+  },
+  { error: "The body must be one JSON object." },
+);
+
+export type LeaveWorkspaceRequest = z.infer<typeof leaveWorkspaceRequestSchema>;
+
 export const createWorkspaceResponseSchema = z.object({
   workspace: z.object({
     id: z.string(),

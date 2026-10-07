@@ -335,6 +335,7 @@ KnowledgeStack/
 - The browser shows SQL after it runs. An editable preview would let someone check and correct it first.
 - Document search uses cosine distance alone. Keyword scoring and reranking could help with exact codes such as `ord_typ_cd`.
 - The agent runs tool calls in sequence. Independent calls, such as several `describe_tables` requests, could run in parallel.
+- A workspace is deleted only when its last member leaves. Deleting one that still has members needs an owner who may do it, and members have no roles yet.
 
 ## License
 

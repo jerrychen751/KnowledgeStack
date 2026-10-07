@@ -47,11 +47,16 @@ export function WorkspaceCard({
         <div className={styles.cardActions}>
           {armedId === workspace.id ? (
             <>
-              <Button disabled={isBusy} onClick={onLeave}>
-                Leave for good
+              <p className={styles.confirm}>
+                {workspace.memberCount === 1
+                  ? "You're the last member, so leaving deletes this workspace and everything in it."
+                  : "Leave this workspace? Every MCP token you made for it stops working."}
+              </p>
+              <Button className={styles.confirmButton} disabled={isBusy} onClick={onLeave}>
+                Leave workspace
               </Button>
               <Button disabled={isBusy} onClick={() => onArm(null)}>
-                Stay
+                Cancel
               </Button>
             </>
           ) : (

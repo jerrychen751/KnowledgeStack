@@ -29,6 +29,6 @@ import { DatabaseConnectionsService } from "./database-connections.service.js";
     DatabaseConnectionRepository,
     DatabaseConnectionsService,
   ],
-  exports: [DatabaseConnectionsService],
+  exports: [DatabaseConnectionPool, DatabaseConnectionsService],
 })
 export class DatabaseConnectionsModule {}
