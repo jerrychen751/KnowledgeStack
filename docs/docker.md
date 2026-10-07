@@ -51,7 +51,7 @@ The address `127.0.0.1` refers to the current host or container. A container use
 
 The root `.env` contains local values for shared infrastructure. Compose reads this file for variable substitution.
 
-`apps/api/.env` contains API-only values. `apps/web/.env.local` contains web-only values.
+`apps/api/.env` contains API-only values. `apps/web/.env` contains web-only values.
 
 The native database URLs must use the root database credentials and the host `127.0.0.1`.
 Set `API_INTERNAL_URL` to `http://127.0.0.1:3001` for the native web app.
