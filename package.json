@@ -8,6 +8,8 @@
     "node": "24.x"
   },
   "scripts": {
+    "azure:apply": "node scripts/apply-azure-infrastructure.mjs create",
+    "azure:what-if": "node scripts/apply-azure-infrastructure.mjs what-if",
     "build": "pnpm -r build",
     "dev": "pnpm dev:apps",
     "dev:apps": "pnpm --filter @knowledgestack/api-contract build && pnpm -r --parallel dev",

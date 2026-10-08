@@ -276,6 +276,12 @@ pnpm docker:down             # stop the services and keep the data
 4. Open `/databases` and register the demo company database: host `127.0.0.1`, port `5433`, and the `agent_readonly` role that `seed-data/tenant_company/06_readonly_role.sql` creates. Clear `Require TLS`, because the local container has no certificate. Write a description, because `list_databases` reports it to the agent.
 5. Open `/` and ask a revenue question, such as "What was net revenue by quarter in 2025?". Watch the tool steps, read the citation rail, and open the SQL below the answer.
 
+## Deployment
+
+KnowledgeStack deploys to Microsoft Azure. `web` and `api` run as two Azure Container Apps that stop when idle, and one Azure Database for PostgreSQL server holds both databases. `infra/main.bicep` declares every resource. After a one-time setup, a push to `main` builds the images, runs the migrations and releases them through the `publish` and `deploy` jobs in `.github/workflows/ci.yml`.
+
+[docs/azure.md](docs/azure.md) explains each Azure piece and lists the setup commands.
+
 ## Testing
 
 The repository has no unit test suite. CI checks the types, build, and running containers on every push and pull request:
@@ -318,8 +324,9 @@ KnowledgeStack/
 ├── seed-data/
 │   ├── tenant_company/                 24 tables of the demo company and the read-only role
 │   └── wiki/                           13 Markdown pages that document those tables
-├── docs/                               notes on Docker, NestJS, pnpm, Prisma and tsconfig
-├── scripts/                            validate-compose-environment.mjs
+├── docs/                               notes on Azure, Docker, NestJS, pnpm, Prisma and tsconfig
+├── infra/                              main.bicep, every Azure resource of the deployment
+├── scripts/                            validate-compose-environment.mjs, apply-azure-infrastructure.mjs
 └── docker-compose.yml
 ```
 
