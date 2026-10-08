@@ -104,3 +104,81 @@ jobs:
       - name: Stop the full container stack
         if: always()
         run: docker compose --profile full down --volumes --remove-orphans
+
+  publish:
+    needs: containers
+    # A fork has no right to push to this registry, so the job runs in this repository only.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'jerrychen751/KnowledgeStack'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io/jerrychen751/knowledgestack
+
+    steps:
+      - name: Retrieve the commit for this event
+        uses: actions/checkout@v7
+
+      - name: Sign in to the GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      # The commit SHA is the tag, so each push leaves an image that Azure can be pointed at.
+      - name: Build the three images
+        run: |
+          docker build --file apps/api/Dockerfile --target production --tag "$REGISTRY-api:$GITHUB_SHA" .
+          docker build --file apps/api/Dockerfile --target migration --tag "$REGISTRY-api-migrate:$GITHUB_SHA" .
+          docker build --file apps/web/Dockerfile --target production --tag "$REGISTRY-web:$GITHUB_SHA" .
+
+      - name: Push the three images
+        run: |
+          docker push "$REGISTRY-api:$GITHUB_SHA"
+          docker push "$REGISTRY-api-migrate:$GITHUB_SHA"
+          docker push "$REGISTRY-web:$GITHUB_SHA"
+
+  deploy:
+    needs: publish
+    # The job stays off until the Azure resources exist and docs/azure.md has set this variable.
+    if: vars.AZURE_CLIENT_ID != ''
+    # Two releases never overlap, or the older one could put its image on the newer one's schema.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # Lets the job request the OpenID Connect token that Azure exchanges for a short-lived one. No Azure secret is stored.
+      id-token: write
+    env:
+      REGISTRY: ghcr.io/jerrychen751/knowledgestack
+      RESOURCE_GROUP: rg-knowledgestack
+
+    steps:
+      - name: Sign in to Azure with the federated identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # A failed migration ends the job here, so api and web keep the previous image.
+      - name: Apply pending migrations
+        run: |
+          az containerapp job update --name api-migrate --resource-group "$RESOURCE_GROUP" --image "$REGISTRY-api-migrate:$GITHUB_SHA"
+          execution=$(az containerapp job start --name api-migrate --resource-group "$RESOURCE_GROUP" --query name --output tsv)
+          while true; do
+            status=$(az containerapp job execution show --name api-migrate --resource-group "$RESOURCE_GROUP" --job-execution-name "$execution" --query properties.status --output tsv)
+            echo "api-migrate: $status"
+            case "$status" in
+              Succeeded) break ;;
+              Running | Processing | Unknown) sleep 5 ;;
+              *) exit 1 ;;
+            esac
+          done
+
+      - name: Set the new image on api and web
+        run: |
+          az containerapp update --name api --resource-group "$RESOURCE_GROUP" --image "$REGISTRY-api:$GITHUB_SHA"
+          az containerapp update --name web --resource-group "$RESOURCE_GROUP" --image "$REGISTRY-web:$GITHUB_SHA"
