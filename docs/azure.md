@@ -58,7 +58,7 @@ az group create --name rg-knowledgestack --location <region>
 
 Push to `main`. The `publish` job in `.github/workflows/ci.yml` builds three images and uploads them to `ghcr.io/jerrychen751`, each tagged with the commit SHA.
 
-GitHub creates a new package as private, and Azure cannot download a private image without a password. After the first run, open https://github.com/jerrychen751?tab=packages, open each of the three packages, and set its visibility to public under Package settings.
+Azure downloads the images without a password, so each package must be public. A package that a workflow of a public repository pushes starts public, and the first run on 2026-10-07 produced three public packages. To check, open https://github.com/jerrychen751?tab=packages. If one shows as private, open it and set its visibility to public under Package settings.
 
 ### 4. Fill in the secrets
 
