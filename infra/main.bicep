@@ -37,10 +37,15 @@ resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
-resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
+resource environment 'Microsoft.App/managedEnvironments@2026-07-01' = {
   name: 'cae-knowledgestack'
   location: location
   properties: {
+    // With no mode stated, Azure created an Express environment on 2026-10-08, and Express cannot run a job such as api-migrate.
+    environmentMode: 'WorkloadProfiles'
+    workloadProfiles: [
+      { name: 'Consumption', workloadProfileType: 'Consumption' }
+    ]
     appLogsConfiguration: {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
