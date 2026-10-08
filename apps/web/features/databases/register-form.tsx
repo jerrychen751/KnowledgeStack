@@ -27,6 +27,7 @@ export function RegisterForm({
     password: "",
   };
   const [form, setForm] = useState(emptyForm);
+  const [ssl, setSsl] = useState(true);
   const changeField = (field: keyof typeof emptyForm, value: string) =>
     setForm((previous) => ({ ...previous, [field]: value }));
   const isIncomplete = Object.values(form).some((value) => value.trim() === "");
@@ -53,9 +54,11 @@ export function RegisterForm({
           database: form.database,
           username: form.username,
           password: form.password,
+          ssl,
         }).then((registered) => {
           if (registered) {
             setForm(emptyForm);
+            setSsl(true);
           }
         });
       }}
@@ -84,6 +87,16 @@ export function RegisterForm({
             maxLength={255}
             autoComplete="new-password"
           />
+        </label>
+        <label className={`${styles.checkField} ${styles.fieldWide}`}>
+          <input
+            className={styles.checkbox}
+            type="checkbox"
+            checked={ssl}
+            onChange={(event) => setSsl(event.target.checked)}
+          />
+          <span>Require TLS</span>
+          <span className={styles.checkNote}>Clear this for a local database that has no certificate.</span>
         </label>
         <label className={`${styles.field} ${styles.fieldWide}`}>
           <Label>What it holds</Label>

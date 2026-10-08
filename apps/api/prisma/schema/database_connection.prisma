@@ -19,6 +19,7 @@ model DatabaseConnection {
   database          String
   username          String
   encryptedPassword String                   @map("encrypted_password")
+  ssl               Boolean                  @default(false)
   status            DatabaseConnectionStatus @default(active)
   // Time of the last check that wrote the status, and not the time of the last successful query: a statement on a connection already active writes nothing
   lastCheckedAt     DateTime                 @default(now()) @map("last_checked_at")

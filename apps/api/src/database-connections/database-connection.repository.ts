@@ -13,6 +13,7 @@ const publicColumns = {
   port: true,
   database: true,
   username: true,
+  ssl: true,
   status: true,
   lastCheckedAt: true,
   createdAt: true,
@@ -43,6 +44,7 @@ export class DatabaseConnectionRepository {
       database: string;
       username: string;
       encryptedPassword: string;
+      ssl: boolean;
     },
   ) {
     return this.prisma.databaseConnection.create({
@@ -67,6 +69,7 @@ export class DatabaseConnectionRepository {
       database: string;
       username: string;
       encryptedPassword: string;
+      ssl: boolean;
     },
   ) {
     return this.prisma.databaseConnection.update({

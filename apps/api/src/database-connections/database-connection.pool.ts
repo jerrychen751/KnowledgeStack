@@ -12,6 +12,7 @@ export type ConnectionSettings = {
   database: string;
   username: string;
   password: string;
+  ssl: boolean;
 };
 
 /** One result set, with every value already rendered as text. A null value renders as an empty string. */
@@ -52,6 +53,8 @@ export class DatabaseConnectionPool implements OnModuleDestroy {
       database: settings.database,
       user: settings.username,
       password: settings.password,
+      // true makes pg verify the server certificate against the CA list that ships with Node, so no CA file is configured.
+      ssl: settings.ssl,
       max: 3,
       connectionTimeoutMillis: 5_000,
       idleTimeoutMillis: 30_000,
@@ -81,6 +84,7 @@ export class DatabaseConnectionPool implements OnModuleDestroy {
       database: settings.database,
       user: settings.username,
       password: settings.password,
+      ssl: settings.ssl,
       connectionTimeoutMillis: 5_000,
     });
     try {

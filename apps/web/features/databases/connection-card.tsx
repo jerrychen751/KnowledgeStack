@@ -38,6 +38,7 @@ export function ConnectionCard({
               {databaseConnection.username}@{databaseConnection.host}:{databaseConnection.port}/
               {databaseConnection.database}
             </span>
+            <span>{databaseConnection.ssl ? "TLS" : "no TLS"}</span>
             <span className={`${styles.status} ${isActive ? "" : styles.statusError}`}>
               <span className={styles.statusDot} />
               {isActive ? "active" : "unreachable"}

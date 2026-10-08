@@ -273,7 +273,7 @@ pnpm docker:down             # stop the services and keep the data
 1. Open `http://localhost:3000`. Sign in with Google. The session cookie lasts 30 days.
 2. Create a workspace at `/workspaces`, or type the eight-character code a member gave you.
 3. Open `/sources` and drag the 13 files in `seed-data/wiki/` onto the page. The page reports the chunk count of each document when the pass finishes.
-4. Open `/databases` and register the demo company database: host `127.0.0.1`, port `5433`, and the `agent_readonly` role that `seed-data/tenant_company/06_readonly_role.sql` creates. Write a description, because `list_databases` reports it to the agent.
+4. Open `/databases` and register the demo company database: host `127.0.0.1`, port `5433`, and the `agent_readonly` role that `seed-data/tenant_company/06_readonly_role.sql` creates. Clear `Require TLS`, because the local container has no certificate. Write a description, because `list_databases` reports it to the agent.
 5. Open `/` and ask a revenue question, such as "What was net revenue by quarter in 2025?". Watch the tool steps, read the citation rail, and open the SQL below the answer.
 
 ## Testing

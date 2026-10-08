@@ -21,6 +21,7 @@ export const databaseConnectionSchema = z.object({
   port: z.number().int(),
   database: z.string(),
   username: z.string(),
+  ssl: z.boolean(),
   status: databaseConnectionStatusSchema,
   lastCheckedAt: z.string(),
   createdAt: z.string(),
@@ -75,6 +76,8 @@ export const createDatabaseConnectionRequestSchema = z.object(
       .string({ error: "password must be a non-empty string." })
       .min(1, "password must be a non-empty string.")
       .max(255, "password must hold 255 characters or fewer."),
+    // true encrypts the connection and verifies the server certificate. false sends plaintext, which only a local database with no certificate needs.
+    ssl: z.boolean({ error: "ssl must be true or false." }),
   },
   { error: "The body must be one JSON object." },
 );

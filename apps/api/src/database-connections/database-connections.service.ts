@@ -43,6 +43,7 @@ export class DatabaseConnectionsService {
       port: connection.port,
       database: connection.database,
       username: connection.username,
+      ssl: connection.ssl,
       status: connection.status,
       lastCheckedAt: connection.lastCheckedAt.toISOString(),
       createdAt: connection.createdAt.toISOString(),
@@ -92,6 +93,7 @@ export class DatabaseConnectionsService {
       database: request.database,
       username: request.username,
       password: request.password,
+      ssl: request.ssl,
     });
     if (message !== "") {
       return {
@@ -109,6 +111,7 @@ export class DatabaseConnectionsService {
       database: request.database,
       username: request.username,
       encryptedPassword: this.encryptionService.encrypt(request.password),
+      ssl: request.ssl,
     };
     if (held === null) {
       try {
@@ -183,6 +186,7 @@ export class DatabaseConnectionsService {
       database: connection.database,
       username: connection.username,
       password: this.encryptionService.decrypt(connection.encryptedPassword),
+      ssl: connection.ssl,
       status: connection.status,
     };
   }

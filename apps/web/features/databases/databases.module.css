@@ -132,6 +132,23 @@
   font-family: var(--font-mono), ui-monospace, monospace;
 }
 
+.checkField {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.checkbox {
+  margin: 0;
+  accent-color: var(--signal);
+}
+
+.checkNote {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
 .formFoot {
   display: flex;
   align-items: center;
