@@ -1,0 +1,221 @@
+.signin-page {
+  display: grid;
+  align-items: center;
+  min-height: calc(100dvh - 3.25rem);
+  padding: clamp(3rem, 7vw, 6.5rem) 1.5rem;
+}
+
+.signin-frame {
+  display: grid;
+  grid-template-columns: minmax(0, 6fr) minmax(28rem, 5fr);
+  align-items: center;
+  gap: clamp(4rem, 6.5vw, 6rem);
+  width: 100%;
+  max-width: var(--shell-width);
+  margin: 0 auto;
+}
+
+.signin-intro {
+  max-width: 34rem;
+}
+
+.signin-title {
+  font-size: clamp(3rem, 5vw, 4.5rem);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.signin-title span {
+  display: block;
+}
+
+.signin-description {
+  max-width: 32rem;
+  margin-top: 2rem;
+  color: var(--ink-soft);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
+.signin-auth {
+  max-width: 28rem;
+  margin-top: 2.5rem;
+}
+
+.signin-failure {
+  margin-bottom: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--rule-strong);
+  border-left: 2px solid var(--warn);
+  border-radius: var(--radius);
+  color: var(--warn);
+  font-size: 0.8125rem;
+}
+
+.signin-google-button {
+  width: 100%;
+  justify-content: center;
+  min-height: 3.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  font-size: 0.9375rem;
+}
+
+.signin-google-mark {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: none;
+}
+
+.signin-next-step {
+  margin-top: 0.875rem;
+  color: var(--ink-faint);
+  font-size: 0.8125rem;
+}
+
+.signin-example {
+  width: 100%;
+  max-width: 39rem;
+  padding-left: clamp(2rem, 4vw, 4rem);
+  border-left: 1px solid var(--rule);
+}
+
+.signin-question {
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--rule-strong);
+  color: var(--ink-soft);
+  font-size: 1.125rem;
+}
+
+.signin-answer {
+  position: relative;
+  margin-top: 1.75rem;
+  padding-right: 2rem;
+  font-size: clamp(1.5rem, 2.25vw, 2rem);
+  line-height: 1.35;
+  letter-spacing: -0.025em;
+}
+
+.signin-answer-citation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-left: 0.35rem;
+  border: 1px solid var(--signal);
+  color: var(--signal);
+  font: 500 0.6875rem/1 var(--font-mono), ui-monospace, monospace;
+  vertical-align: 0.35em;
+}
+
+.signin-source {
+  margin: 3rem 0 0;
+  padding: 1.5rem;
+  border: 1px solid var(--rule-strong);
+  border-top: 2px solid var(--signal);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.signin-source-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.signin-source-index {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--signal);
+  color: var(--signal);
+  font: 500 0.875rem/1 var(--font-mono), ui-monospace, monospace;
+}
+
+.signin-source-title {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.signin-source-location {
+  margin-top: 0.25rem;
+  color: var(--ink-faint);
+  font: 400 0.75rem/1.45 var(--font-mono), ui-monospace, monospace;
+}
+
+.signin-chunk {
+  margin: 1.25rem 0 0;
+  padding: 1.25rem 0 0;
+  border-top: 1px solid var(--rule);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+@media (max-width: 58rem) {
+  .signin-page {
+    align-items: start;
+    padding-top: 4rem;
+  }
+
+  .signin-frame {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4rem;
+  }
+
+  .signin-intro,
+  .signin-example {
+    max-width: 42rem;
+  }
+
+  .signin-example {
+    padding: 3rem 0 0;
+    border-top: 1px solid var(--rule);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 38rem) {
+  .signin-page {
+    padding: 2.75rem 1rem 4rem;
+  }
+
+  .signin-frame {
+    gap: 3rem;
+  }
+
+  .signin-title {
+    font-size: clamp(2.75rem, 13vw, 4rem);
+  }
+
+  .signin-description {
+    margin-top: 1.5rem;
+    font-size: 1rem;
+  }
+
+  .signin-auth {
+    margin-top: 2rem;
+  }
+
+  .signin-example {
+    padding-top: 2.5rem;
+  }
+
+  .signin-answer {
+    padding-right: 0;
+    font-size: 1.375rem;
+  }
+
+  .signin-source {
+    margin-top: 2rem;
+    padding: 1.25rem;
+  }
+
+  .signin-source-header {
+    gap: 0.875rem;
+  }
+}

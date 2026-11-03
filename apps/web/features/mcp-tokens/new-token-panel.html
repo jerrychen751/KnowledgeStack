@@ -1,0 +1,34 @@
+<div class="mcp-tokens-panel-head">
+  <div>
+    <p ksLabel>Your MCP token is ready</p>
+    <p class="mcp-tokens-panel-warning">Copy the command and run it in your terminal. You can't see this token again after you click Done or leave this page.</p>
+  </div>
+  <button ksButton (click)="dismiss.emit()">Done</button>
+</div>
+
+<div class="mcp-tokens-tabs">
+  @for (tab of tabs(); track tab.key) {
+    <button
+      type="button"
+      class="mcp-tokens-tab"
+      [class.mcp-tokens-tab-open]="tab.key === openTab()"
+      (click)="openTab.set(tab.key); copyState.set('idle')"
+    >{{ tab.label }}</button>
+  }
+</div>
+
+<pre class="mcp-tokens-command">{{ command() }}</pre>
+
+<div class="mcp-tokens-panel-foot">
+  <button ksButton variant="primary" class="mcp-tokens-copy-button" (click)="copyCommand()">@if (copyState() === "copied") {<svg ksCheckMark></svg>Copied} @else {Copy}</button>
+  @if (copyState() === "failed") {
+    <span class="mcp-tokens-copy-notice">Copy the command by hand.</span>
+  }
+</div>
+
+<dl class="mcp-tokens-raw-fields">
+  <dt>Server URL</dt>
+  <dd>{{ serverUrl() }}</dd>
+  <dt>Header</dt>
+  <dd>Authorization: Bearer {{ secret() }}</dd>
+</dl>

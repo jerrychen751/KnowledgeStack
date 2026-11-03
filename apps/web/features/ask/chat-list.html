@@ -1,0 +1,40 @@
+<div class="ask-chat-list-head">
+  <button type="button" class="ask-new-chat" (click)="open.emit(null)"><span class="ask-new-chat-mark" aria-hidden="true">+</span>New chat</button>
+</div>
+
+<div class="ask-chat-list-body">
+  @if (listFailure() !== "") {
+    <p class="ask-chat-list-failure">{{ listFailure() }}</p>
+  }
+  @if (chats().length === 0 && listFailure() === "") {
+    <p class="ask-chat-list-empty">No chat yet.</p>
+  }
+
+  @for (chat of chats(); track chat.id) {
+    <div class="ask-chat-row" [class.ask-chat-row-active]="chat.id === openChatId()">
+      <button
+        type="button"
+        class="ask-chat-open"
+        [attr.aria-current]="chat.id === openChatId() ? 'page' : null"
+        (click)="open.emit(chat.id)"
+      >
+        <span class="ask-chat-title">{{ chat.title === "" ? "New chat" : chat.title }}</span>
+        <span class="ask-chat-time">{{ formatTime(chat.updatedAt) }}</span>
+      </button>
+
+      @if (chat.id === confirmingChatId()) {
+        <span class="ask-chat-confirm">
+          <button type="button" class="ask-chat-confirm-delete" (click)="confirmingChatId.set(null); delete.emit(chat.id)">Delete</button>
+          <button type="button" class="ask-chat-confirm-cancel" (click)="confirmingChatId.set(null)">Cancel</button>
+        </span>
+      } @else {
+        <button
+          type="button"
+          class="ask-chat-delete"
+          [attr.aria-label]="'Delete ' + (chat.title === '' ? 'this chat' : chat.title)"
+          (click)="confirmingChatId.set(chat.id)"
+        >&times;</button>
+      }
+    </div>
+  }
+</div>

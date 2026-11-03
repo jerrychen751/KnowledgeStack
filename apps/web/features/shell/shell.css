@@ -1,0 +1,153 @@
+.shell-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0 1.5rem;
+  height: 3.25rem;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.shell-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.shell-mark {
+  display: block;
+  flex: none;
+}
+
+.shell-nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.shell-nav-link {
+  padding: 0.3125rem 0.625rem;
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.shell-nav-link:hover {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.shell-nav-link-active {
+  background: var(--signal-wash);
+  color: var(--signal);
+  font-weight: 500;
+}
+
+.shell-main {
+  flex: 1;
+  min-height: 0;
+}
+
+.shell-account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+
+.shell-workspace {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12rem;
+}
+
+.shell-workspace:hover {
+  border-color: var(--rule-strong);
+}
+
+.shell-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.shell-avatar {
+  flex: none;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 50%;
+}
+
+.shell-email {
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 14rem;
+}
+
+.shell-sign-out {
+  padding: 0.25rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.shell-sign-out:hover {
+  color: var(--signal);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+/* The header keeps one line at every width: each rule below drops the least useful item next. */
+@media (max-width: 52rem) {
+  .shell-email {
+    display: none;
+  }
+}
+
+@media (max-width: 34rem) {
+  .shell-header {
+    gap: 0.875rem;
+    padding: 0 1rem;
+  }
+
+  .shell-wordmark-text {
+    display: none;
+  }
+
+  .shell-account {
+    gap: 0.5rem;
+  }
+
+  .shell-workspace {
+    max-width: 8rem;
+  }
+}

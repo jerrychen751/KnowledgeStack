@@ -27,6 +27,10 @@
   --chat-list-width: 15rem;
   --shell-width: 78rem;
 
+  /* The @fontsource stylesheets that angular.json loads register these two families. */
+  --font-sans: "IBM Plex Sans";
+  --font-mono: "IBM Plex Mono";
+
   --label: 500 0.6875rem/1 var(--font-mono), ui-monospace, monospace;
   --label-tracking: 0.09em;
 }

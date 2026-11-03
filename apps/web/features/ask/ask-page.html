@@ -1,0 +1,56 @@
+<div class="ask-layout">
+  <nav
+    ksChatList
+    [chats]="chatRows.chats()"
+    [openChatId]="chat.openChatId()"
+    [listFailure]="chatRows.listFailure()"
+    (open)="showChat($event)"
+    (delete)="deleteChat($event)"
+  ></nav>
+
+  <section class="ask-thread">
+    <div
+      #stream
+      class="ask-stream"
+      [class.ask-stream-empty]="chat.turns().length === 0"
+      (scroll)="isPinnedToBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight < 80"
+    >
+      @if (chat.loadFailure() !== "") {
+        <p class="ask-load-failure">{{ chat.loadFailure() }}</p>
+      } @else if (chat.isLoadingChat()) {
+        <p class="ask-loading-chat">Reading the chat</p>
+      } @else if (chat.turns().length === 0) {
+        <div ksOpening [sources]="sources()"></div>
+      } @else {
+        <div
+          ksTurnList
+          [turns]="chat.turns()"
+          [activeTurnIndex]="activeTurnIndex()"
+          [activeCitationIndex]="activeCitationIndex()"
+          (citationSelect)="selectedTurnIndex.set($event.turnIndex); activeCitationIndex.set($event.citationIndex)"
+        ></div>
+      }
+    </div>
+
+    <form
+      ksComposer
+      [question]="question()"
+      (questionChange)="question.set($event)"
+      (questionSubmit)="submitQuestion()"
+      [isRunning]="chat.isRunning()"
+      [isLoadingChat]="chat.isLoadingChat()"
+      [modelIds]="modelIds()"
+      [modelId]="modelId()"
+      (modelIdChange)="modelId.set($event)"
+      [usage]="chat.usage()"
+    ></form>
+  </section>
+
+  <aside
+    ksCitationRail
+    [turn]="activeTurn()"
+    [activeTurnIndex]="activeTurnIndex()"
+    [activeCitationIndex]="activeCitationIndex()"
+    (select)="activeCitationIndex.set($event)"
+  ></aside>
+</div>

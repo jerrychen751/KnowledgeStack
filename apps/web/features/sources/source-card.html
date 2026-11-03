@@ -1,0 +1,40 @@
+<div class="sources-card-head">
+  <div>
+    <span ksLabel>{{ source().provider }}</span>
+    <h2 class="sources-card-name">{{ source().externalDisplayName }}</h2>
+    <p class="sources-card-stats">
+      <span class="sources-card-stat"><b>{{ source().documentCount }}</b> {{ source().documentCount === 1 ? "document" : "documents" }}</span>
+      <span class="sources-card-stat"><b>{{ source().chunkCount }}</b> {{ source().chunkCount === 1 ? "chunk" : "chunks" }}</span>
+      <span class="sources-card-stat">synced {{ formatTime(source().lastSyncedAt) }}</span>
+    </p>
+  </div>
+  <div class="sources-card-actions">
+    @if (armedId() === source().id) {
+      <p class="sources-confirm">{{
+        source().provider === "upload"
+          ? "Delete this source and every file uploaded to it?"
+          : `Remove this source? Your pages stay in ${source().provider}.`
+      }}</p>
+      <button ksButton class="sources-confirm-button" [disabled]="isBusy()" (click)="deleteSource.emit()">Delete</button>
+      <button ksButton [disabled]="isBusy()" (click)="arm.emit(null)">Cancel</button>
+    } @else {
+      <button ksButton [disabled]="isBusy()" (click)="sync.emit()">Sync</button>
+      <button ksButton [disabled]="isBusy()" (click)="arm.emit(source().id)">Remove</button>
+    }
+  </div>
+</div>
+
+@if (documents().length > 0) {
+  <div class="sources-documents" [class.sources-documents-removable]="source().provider === 'upload'">
+    @for (document of documents(); track document.id) {
+      <div
+        ksDocumentRow
+        [document]="document"
+        [isRemovable]="source().provider === 'upload'"
+        [isArmed]="armedId() === document.id"
+        [isBusy]="isBusy()"
+        (removeClick)="armedId() === document.id ? deleteDocument.emit(document.id) : arm.emit(document.id)"
+      ></div>
+    }
+  </div>
+}

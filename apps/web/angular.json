@@ -1,0 +1,79 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "packageManager": "pnpm",
+    "analytics": false
+  },
+  "projects": {
+    "web": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "",
+      "prefix": "ks",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist",
+            "index": "index.html",
+            "browser": "main.ts",
+            "server": "main.server.ts",
+            "outputMode": "server",
+            "ssr": {
+              "entry": "server.ts"
+            },
+            "tsConfig": "tsconfig.json",
+            "allowedCommonJsDependencies": ["nearley"],
+            "security": {
+              "allowedHosts": ["localhost", "127.0.0.1", "*.azurecontainerapps.io"]
+            },
+            "styles": [
+              "@fontsource/ibm-plex-sans/400.css",
+              "@fontsource/ibm-plex-sans/500.css",
+              "@fontsource/ibm-plex-sans/600.css",
+              "@fontsource/ibm-plex-mono/400.css",
+              "@fontsource/ibm-plex-mono/500.css",
+              "styles/globals.css",
+              "components/ui.css",
+              "features/shell/shell.css",
+              "features/ask/ask.css",
+              "features/databases/databases.css",
+              "features/mcp-tokens/mcp-tokens.css",
+              "features/settings/settings.css",
+              "features/signin/signin.css",
+              "features/sources/sources.css",
+              "features/workspaces/workspaces.css"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 3000
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "web:build:production"
+            },
+            "development": {
+              "buildTarget": "web:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        }
+      }
+    }
+  }
+}

@@ -30,18 +30,15 @@ RUN pnpm --filter @knowledgestack/web... build
 FROM node:24-bookworm-slim AS production
 
 ENV NODE_ENV="production"
-ENV HOSTNAME="0.0.0.0"
 ENV PORT="3000"
 
 WORKDIR /app
 
-COPY --from=build --chown=node:node /workspace/apps/web/.next/standalone ./
-COPY --from=build --chown=node:node /workspace/apps/web/.next/static ./apps/web/.next/static
-
-WORKDIR /app/apps/web
+# The Angular build bundles the server's dependencies, so the image needs the build output and no node_modules.
+COPY --from=build --chown=node:node /workspace/apps/web/dist ./
 
 USER node
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", "server/server.mjs"]

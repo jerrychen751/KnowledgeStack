@@ -1,0 +1,70 @@
+<div
+  ksPageLayout
+  [title]="'Workspaces'"
+  [subtitle]="'Each workspace keeps its own sources, documents and chunks. Questions search only the workspace that\'s open.'"
+  [notice]="request.notice()"
+>
+  <section ksSection label="Your workspaces">
+    @if (request.isBusy()) {
+      <p sectionAside class="workspaces-busy">{{ request.busyMessage() }}</p>
+    }
+    @if (workspaces().length === 0) {
+      <p ksEmptyState>You have no workspaces yet.</p>
+    } @else {
+      <ul class="workspaces-list">
+        @for (workspace of workspaces(); track workspace.id) {
+          <li
+            ksWorkspaceCard
+            [workspace]="workspace"
+            [isActive]="workspace.id === activeWorkspaceId()"
+            [isBusy]="request.isBusy()"
+            [armedId]="armedId()"
+            (arm)="armedId.set($event)"
+            (open)="openWorkspace(workspace)"
+            [isCopied]="workspace.id === copiedId()"
+            (copyCode)="copyJoinCode(workspace.id, workspace.joinCode)"
+            (leave)="leaveWorkspace(workspace)"
+          ></li>
+        }
+      </ul>
+    }
+  </section>
+
+  <section class="workspaces-forms">
+    <form class="workspaces-form" (submit)="$event.preventDefault(); createWorkspace()">
+      <p ksLabel>Create a workspace</p>
+      <div class="workspaces-form-row">
+        <input
+          #nameInput
+          class="workspaces-input"
+          [value]="workspaceName()"
+          (input)="workspaceName.set(nameInput.value)"
+          placeholder="Platform team"
+          maxlength="60"
+          aria-label="Workspace name"
+        />
+        <button ksButton type="submit" variant="primary" [disabled]="request.isBusy() || workspaceName().trim() === ''">Create</button>
+      </div>
+    </form>
+
+    <form class="workspaces-form" (submit)="$event.preventDefault(); joinWorkspace()">
+      <p ksLabel>Join a workspace</p>
+      <div class="workspaces-form-row">
+        <input
+          #codeInput
+          class="workspaces-input workspaces-code-input"
+          [value]="joinCode()"
+          (input)="setJoinCode(codeInput)"
+          placeholder="K7QW2M4D"
+          pattern="[A-HJ-KM-NP-Z2-9]{8}"
+          autocapitalize="characters"
+          autocomplete="off"
+          spellcheck="false"
+          title="Enter all eight join-code letters or digits."
+          aria-label="Join code"
+        />
+        <button ksButton type="submit" [disabled]="request.isBusy() || joinCode().length !== 8">Join</button>
+      </div>
+    </form>
+  </section>
+</div>

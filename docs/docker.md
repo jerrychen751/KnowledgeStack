@@ -14,7 +14,7 @@ This project uses Docker in two ways:
 
 Complete the [local setup](../README.md#local-development) before you use either path.
 
-The native path uses Docker for both databases. Nest and Next.js run on the host.
+The native path uses Docker for both databases. Nest and the Angular dev server run on the host.
 
 ```bash
 pnpm dev:db
@@ -65,7 +65,7 @@ Each Dockerfile uses the repository root as its build context. Both applications
 
 The API image generates the Prisma client before it compiles the API. The final image contains only production dependencies and compiled files.
 
-The web image uses the Next.js standalone output. The final image contains the traced runtime files and static assets.
+The web image uses the Angular build output, whose server bundle already contains its dependencies. The final image contains that bundle and the static browser files, with no `node_modules`.
 
 The final images use the non-root `node` user.
 

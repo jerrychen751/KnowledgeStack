@@ -1,0 +1,41 @@
+<div ksPageLayout [title]="'Sources'" subtitle="Answers use only the sources on this page." [notice]="request.notice()">
+  <section ksSection label="Add files">
+    <div
+      ksUploadDropZone
+      [fileExtensions]="connectors()?.uploads.fileExtensions ?? null"
+      [isBusy]="request.isBusy()"
+      [busyMessage]="request.busyMessage()"
+      (files)="uploadFiles($event)"
+    ></div>
+  </section>
+
+  <section ksSection label="Your sources">
+    @if (sources().length === 0) {
+      <p ksEmptyState>No sources yet.</p>
+    } @else {
+      @for (source of sources(); track source.id) {
+        <article
+          ksSourceCard
+          [source]="source"
+          [documents]="documentsBySourceId()[source.id] ?? []"
+          [isBusy]="request.isBusy()"
+          [armedId]="removalAwaitingConfirmId()"
+          (arm)="removalAwaitingConfirmId.set($event)"
+          (sync)="syncSource(source.id)"
+          (deleteSource)="deleteSource(source.id)"
+          (deleteDocument)="deleteDocument(source.id, $event)"
+        ></article>
+      }
+    }
+  </section>
+
+  <section ksSection label="Connect a provider">
+    <div
+      ksConnectorList
+      [providers]="connectors()?.providers ?? []"
+      [sources]="sources()"
+      [isBusy]="request.isBusy()"
+      (connect)="connectProvider($event)"
+    ></div>
+  </section>
+</div>

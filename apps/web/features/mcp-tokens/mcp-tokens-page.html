@@ -1,0 +1,48 @@
+<div
+  ksPageLayout
+  [title]="'MCP Tokens'"
+  [subtitle]="'A token lets an outside agent, such as Claude Code, use this workspace\'s tools. Each token works only with the workspace that was open when you created it.'"
+  [notice]="request.notice()"
+>
+  @if (newToken(); as token) {
+    <section ksNewTokenPanel [secret]="token.secret" [serverUrl]="token.serverUrl" (dismiss)="newToken.set(null)"></section>
+  }
+
+  <section ksSection label="Create a token">
+    <form class="mcp-tokens-form" (submit)="$event.preventDefault(); createMcpToken()">
+      <p ksLabel>Name the MCP Token</p>
+      <div class="mcp-tokens-form-row">
+        <input
+          #nameInput
+          class="mcp-tokens-input"
+          [value]="name()"
+          (input)="name.set(nameInput.value)"
+          placeholder="Claude Code on the laptop"
+          maxlength="60"
+          aria-label="Token name"
+        />
+        <button ksButton type="submit" variant="primary" [disabled]="request.isBusy() || name().trim() === ''">Create</button>
+      </div>
+    </form>
+  </section>
+
+  <section ksSection label="Your tokens">
+    @if (request.isBusy()) {
+      <p sectionAside class="mcp-tokens-busy">{{ request.busyMessage() }}</p>
+    }
+    @if (mcpTokens().length === 0) {
+      <p ksEmptyState>No MCP tokens yet.</p>
+    } @else {
+      @for (mcpToken of mcpTokens(); track mcpToken.id) {
+        <article
+          ksMcpTokenCard
+          [mcpToken]="mcpToken"
+          [isBusy]="request.isBusy()"
+          [armedId]="armedId()"
+          (arm)="armedId.set($event)"
+          (delete)="deleteMcpToken(mcpToken.id, mcpToken.name)"
+        ></article>
+      }
+    }
+  </section>
+</div>

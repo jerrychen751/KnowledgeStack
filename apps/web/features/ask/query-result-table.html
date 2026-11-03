@@ -1,0 +1,38 @@
+<button
+  type="button"
+  class="ask-query-head"
+  (click)="isSqlOpen.set(!isSqlOpen())"
+  [attr.aria-expanded]="isSqlOpen()"
+>
+  <span class="ask-query-label">{{ result().database }}</span>
+  <span class="ask-query-count">{{ result().rows.length }} row{{ result().rows.length === 1 ? "" : "s" }}</span>
+  <span class="ask-query-sql-toggle">{{ isSqlOpen() ? "hide sql" : "show sql" }}</span>
+</button>
+@if (isSqlOpen()) {
+  <!-- A pre keeps every space of its template, so its content stays on one line. -->
+  <pre class="ask-query-sql">@for (piece of paintedSql(); track $index) {@if (piece.className === null) {<ng-container>{{ piece.text }}</ng-container>}@else {<span [class]="piece.className">{{ piece.text }}</span>}}</pre>
+}
+@if (result().rows.length === 0) {
+  <p class="ask-query-empty">The query matched no row.</p>
+} @else {
+  <div class="ask-query-scroll">
+    <table class="ask-query-table">
+      <thead>
+        <tr>
+          @for (column of result().columns; track $index) {
+            <th scope="col">{{ column }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of result().rows; track $index) {
+          <tr>
+            @for (value of row; track $index) {
+              <td>{{ value }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

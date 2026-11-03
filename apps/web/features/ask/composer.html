@@ -1,0 +1,31 @@
+<div class="ask-composer-inner">
+  <textarea
+    #input
+    class="ask-input"
+    rows="1"
+    [value]="question()"
+    placeholder="Ask about your documents"
+    aria-label="Ask about your documents"
+    (input)="questionChange.emit($any($event.target).value)"
+    (keydown)="submitOnEnter($event)"
+  ></textarea>
+  <button ksButton type="submit" variant="primary" [disabled]="isRunning() || isLoadingChat() || question().trim() === ''">{{ isRunning() ? "Answering" : "Ask" }}</button>
+</div>
+<div class="ask-composer-foot">
+  <label class="ask-model-picker">
+    <span class="ask-step-label">Model</span>
+    <select
+      class="ask-model-select"
+      [disabled]="isRunning() || modelIds().length === 0"
+      (change)="modelIdChange.emit($any($event.target).value)"
+    >
+      <!-- Each option binds selected, because a value bound on the select lands before its options exist. -->
+      @for (id of modelIds(); track id) {
+        <option [value]="id" [selected]="id === modelId()">{{ id }}</option>
+      }
+    </select>
+  </label>
+  @if (usage(); as usage) {
+    <span ksContextRing [usage]="usage"></span>
+  }
+</div>

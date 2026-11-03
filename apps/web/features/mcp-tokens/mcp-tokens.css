@@ -1,0 +1,181 @@
+.mcp-tokens-card {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.mcp-tokens-card + .mcp-tokens-card {
+  margin-top: 1rem;
+}
+
+.mcp-tokens-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.125rem 1.25rem;
+}
+
+.mcp-tokens-card-name {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.mcp-tokens-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.mcp-tokens-expired {
+  color: var(--warn);
+}
+
+.mcp-tokens-card-actions {
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mcp-tokens-form {
+  padding: 1.125rem 1.25rem 1.25rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.mcp-tokens-form-row {
+  display: flex;
+  gap: 0.625rem;
+  margin-top: 0.5rem;
+}
+
+.mcp-tokens-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4375rem 0.625rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.mcp-tokens-input:focus-visible {
+  border-color: var(--signal);
+}
+
+.mcp-tokens-busy {
+  font-size: 0.8125rem;
+  color: var(--ink-faint);
+}
+
+.mcp-tokens-panel {
+  margin-bottom: 1.75rem;
+  padding: 1.125rem 1.25rem 1.25rem;
+  border: 1px solid var(--signal);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.mcp-tokens-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.mcp-tokens-panel-warning {
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+
+.mcp-tokens-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 1.125rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.mcp-tokens-tab {
+  padding: 0.375rem 0.75rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.mcp-tokens-tab:hover {
+  color: var(--ink);
+}
+
+.mcp-tokens-tab-open {
+  border-bottom-color: var(--signal);
+  color: var(--ink);
+}
+
+.mcp-tokens-command {
+  overflow-x: auto;
+  margin-top: 0.875rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.mcp-tokens-panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  margin-top: 0.875rem;
+}
+
+.mcp-tokens-copy-button {
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: 5.75rem;
+}
+
+.mcp-tokens-copy-notice {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.mcp-tokens-raw-fields {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.375rem 1rem;
+  margin-top: 1.125rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--rule);
+  font-size: 0.8125rem;
+}
+
+.mcp-tokens-raw-fields dt {
+  color: var(--ink-faint);
+}
+
+.mcp-tokens-raw-fields dd {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 46rem) {
+  .mcp-tokens-card-head,
+  .mcp-tokens-panel-head {
+    flex-direction: column;
+  }
+}

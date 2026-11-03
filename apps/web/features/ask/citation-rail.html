@@ -1,0 +1,46 @@
+@let shownTurn = turn();
+<div class="ask-rail-header">
+  <span ksLabel>Citations</span>
+  <span class="ask-rail-count">{{ shownTurn === undefined || shownTurn.citations.length === 0 ? "" : shownTurn.citations.length + " retrieved · " + citedIndexes().size + " cited" }}</span>
+</div>
+<div class="ask-rail-body">
+  @if (shownTurn === undefined || shownTurn.citations.length === 0) {
+    @if (shownTurn?.state === "running") {
+      <p class="ask-rail-empty">Searching the index.</p>
+    }
+  } @else {
+    <ul>
+      @for (citation of shownTurn.citations; track citation.chunkId; let position = $index) {
+        <li>
+          <button
+            type="button"
+            [id]="'citation-' + citation.index"
+            class="ask-citation"
+            [class.ask-citation-uncited]="!citedIndexes().has(citation.index)"
+            [class.ask-citation-active]="citation.index === activeCitationIndex()"
+            [style.animation-delay.ms]="Math.min(position, 8) * 35"
+            (click)="toggleChunk(citation.index, citation.chunkId)"
+            [attr.aria-expanded]="openChunkIds().includes(citation.chunkId)"
+          >
+            <span class="ask-citation-head">
+              <span class="ask-citation-index">{{ citation.index }}</span>
+              <span class="ask-citation-title">{{ citation.externalTitle }}</span>
+            </span>
+            @if (citation.headingPath.length !== 0) {
+              <span class="ask-citation-path">{{ citation.headingPath.join(" › ") }}</span>
+            }
+            <span class="ask-citation-meter">
+              <span class="ask-ticks" aria-hidden="true">
+                @for (tickPosition of tickPositions; track tickPosition) {
+                  <span class="ask-tick" [class.ask-tick-filled]="tickPosition < Math.round(citation.similarityScore * 16)"></span>
+                }
+              </span>
+              <span class="ask-similarity-score">similarity {{ citation.similarityScore.toFixed(2) }}</span>
+            </span>
+            <span class="ask-chunk" [class.ask-chunk-open]="openChunkIds().includes(citation.chunkId)">{{ stripMarkdown(citation.text) }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

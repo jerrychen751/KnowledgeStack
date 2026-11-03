@@ -1,0 +1,50 @@
+<div class="databases-fields">
+  @for (field of fields; track field.key) {
+    <label class="databases-field">
+      <span ksLabel>{{ field.label }}</span>
+      <input
+        #fieldInput
+        class="databases-input"
+        [class.databases-mono-input]="field.isMono"
+        [value]="form()[field.key]"
+        (input)="changeField(field.key, fieldInput.value)"
+        [placeholder]="field.placeholder"
+        [maxLength]="field.maxLength"
+        [attr.inputmode]="field.key === 'port' ? 'numeric' : null"
+      />
+    </label>
+  }
+  <label class="databases-field">
+    <span ksLabel>Password</span>
+    <input
+      #passwordInput
+      class="databases-input"
+      type="password"
+      [value]="form().password"
+      (input)="changeField('password', passwordInput.value)"
+      maxlength="255"
+      autocomplete="new-password"
+    />
+  </label>
+  <label class="databases-check-field databases-field-wide">
+    <input #sslInput class="databases-checkbox" type="checkbox" [checked]="ssl()" (change)="ssl.set(sslInput.checked)" />
+    <span>Require TLS</span>
+    <span class="databases-check-note">Clear this for a local database that has no certificate.</span>
+  </label>
+  <label class="databases-field databases-field-wide">
+    <span ksLabel>What it holds</span>
+    <input
+      #descriptionInput
+      class="databases-input"
+      [value]="form().description"
+      (input)="changeField('description', descriptionInput.value)"
+      placeholder="Orders and invoices from the ERP"
+      maxlength="500"
+    />
+  </label>
+</div>
+
+<div class="databases-form-foot">
+  <p class="databases-form-note">The agent reads the description to decide which database to query. It runs every statement as the user you enter here, so use a read-only role. To change a database's credentials, register it again with the same name.</p>
+  <button ksButton type="submit" variant="primary" [disabled]="isBusy() || isIncomplete()">Register</button>
+</div>

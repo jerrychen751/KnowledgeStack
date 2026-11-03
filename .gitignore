@@ -2,13 +2,11 @@
 node_modules/
 
 # === Build output ===
-# dist/ = NestJS (apps/api); .next/ + out/ = Next.js (apps/web)
+# dist/ = NestJS (apps/api) and Angular (apps/web); .angular/ = the Angular CLI build cache (apps/web)
 dist/
-.next/
-out/
+.angular/
 build/
 *.tsbuildinfo
-next-env.d.ts
 apps/api/src/generated/
 
 # === Environment & secrets ===

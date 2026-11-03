@@ -1,0 +1,23 @@
+<div class="databases-card-head">
+  <div>
+    <span ksLabel>{{ databaseConnection().engine }}</span>
+    <h2 class="databases-card-name">{{ databaseConnection().name }}</h2>
+    <p class="databases-card-description">{{ databaseConnection().description }}</p>
+    <p class="databases-card-stats">
+      <span class="databases-dsn">{{ databaseConnection().username }}&#64;{{ databaseConnection().host }}:{{ databaseConnection().port }}/{{ databaseConnection().database }}</span>
+      <span>{{ databaseConnection().ssl ? "TLS" : "no TLS" }}</span>
+      <span class="databases-status" [class.databases-status-error]="!isActive()"><span class="databases-status-dot"></span>{{ isActive() ? "active" : "unreachable" }}</span>
+      <span>checked {{ formatTime(databaseConnection().lastCheckedAt) }}</span>
+    </p>
+  </div>
+  <div class="databases-card-actions">
+    @if (armedId() === databaseConnection().id) {
+      <p class="databases-confirm">Remove this database? The agent stops answering questions about it.</p>
+      <button ksButton class="databases-confirm-button" [disabled]="isBusy()" (click)="delete.emit()">Delete</button>
+      <button ksButton [disabled]="isBusy()" (click)="arm.emit(null)">Cancel</button>
+    } @else {
+      <button ksButton [disabled]="isBusy()" (click)="test.emit()">Test</button>
+      <button ksButton [disabled]="isBusy()" (click)="arm.emit(databaseConnection().id)">Remove</button>
+    }
+  </div>
+</div>

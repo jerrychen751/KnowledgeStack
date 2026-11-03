@@ -40,9 +40,9 @@ To try this example locally, follow [Getting started](#getting-started).
                      /api/... with the ks_session cookie
                                      │
   ┌──────────────────────────────────▼──────────────────────────────────┐
-  │  Web  ·  Next.js 16  ·  port 3000                                   │
-  │  proxy.ts sends a page request that carries no cookie to /signin    │
-  │  app/api/[...path] forwards every /api call and streams the answer  │
+  │  Web  ·  Angular 22  ·  port 3000                                   │
+  │  server.ts sends a page request that carries no cookie to /signin   │
+  │  server.ts forwards every /api call and streams the answer          │
   └──────────────────────────────────┬──────────────────────────────────┘
                        API_INTERNAL_URL, server to server
                                      │
@@ -70,11 +70,11 @@ To try this example locally, follow [Getting started](#getting-started).
   └──────────────────────────────────┘   └─────────────────────────────┘
 ```
 
-The browser talks to Next.js, which forwards `/api/...` requests to NestJS and streams the answer back. One path turns uploaded or connected documents into searchable `document_chunks`. The other retrieves those chunks and, when needed, queries a registered business database. The application database keeps workspaces, documents, and chats separate from those business databases.
+The browser talks to the Angular app's Express server, which forwards `/api/...` requests to NestJS and streams the answer back. One path turns uploaded or connected documents into searchable `document_chunks`. The other retrieves those chunks and, when needed, queries a registered business database. The application database keeps workspaces, documents, and chats separate from those business databases.
 
 ## Tech stack
 
-- **Frontend:** Next.js 16 (App Router), React 19, TypeScript 6, CSS Modules, IBM Plex
+- **Frontend:** Angular 22 with signals, `@angular/ssr` on Express, TypeScript 6, one global stylesheet per feature, IBM Plex
 - **Backend:** NestJS 11, Node.js 24, Express
 - **Database:** PostgreSQL 17, pgvector, Prisma 7 with a split schema
 - **AI:** OpenAI Responses API, `text-embedding-3-small` at 1536 dimensions, LangChain text splitters, `js-tiktoken`
@@ -146,7 +146,7 @@ The role that the workspace registers is the check that must hold, because it is
 
 ### Why the browser never calls the API directly
 
-`apps/web/app/api/[...path]/route.ts` forwards every `/api` call to `API_INTERNAL_URL` and passes the session cookie through unread. The browser sees one origin, so the API needs no CORS rule, sets no cross-site cookie, and can stay private to the Docker network in a deployment. The forwarder returns `response.body` instead of reading it, which is what keeps the Server-Sent Event stream flowing through Next.js instead of buffering until the answer ends.
+`apps/web/server.ts` forwards every `/api` call to `API_INTERNAL_URL` and passes the session cookie through unread. The browser sees one origin, so the API needs no CORS rule, sets no cross-site cookie, and can stay private to the Docker network in a deployment. The forwarder pipes `response.body` to the browser instead of reading it, which is what keeps the Server-Sent Event stream flowing through the web server instead of buffering until the answer ends.
 
 On the API side, `SessionGuard` runs under `APP_GUARD`. A route without `@Public()` requires a signed-in person, and `ActiveWorkspaceId` returns 403 when no workspace is selected.
 
@@ -241,6 +241,8 @@ Every page needs a signed-in person, so the Google client is not optional in pra
 
 `apps/web/.env` holds `API_INTERNAL_URL`, which is `http://127.0.0.1:3001` for the native path.
 
+The web server answers a page request only for a host that `apps/web/angular.json` lists under `security.allowedHosts`: `localhost`, `127.0.0.1` and any `*.azurecontainerapps.io` name. Any other host gets 400, which is how Angular blocks a forged `Host` header. A deployment on another domain names it in `NG_ALLOWED_HOSTS`, comma-separated, without a rebuild.
+
 Register these redirect URIs on the matching provider. The API derives both from `WEB_APP_URL`, so a deployment sets no redirect variable.
 
 ```
@@ -314,11 +316,11 @@ KnowledgeStack/
 │   │       ├── mcp/                    the MCP route, the token guard and the token routes
 │   │       ├── tools/                  the @Tool methods and the registry
 │   │       └── workspaces/             workspaces, join codes, membership
-│   └── web/                            Next.js app, port 3000
-│       ├── app/                        the routes; app/api/[...path] forwards to the API
+│   └── web/                            Angular app, port 3000
+│       ├── app/                        the root component, the routes and the app config
 │       ├── components/                 the shared button, label and section
-│       ├── features/                   one folder per page, with its CSS module
-│       └── proxy.ts                    sends a browser without the cookie to /signin
+│       ├── features/                   one folder per page, with its stylesheet
+│       └── server.ts                   forwards /api to the API, sends a browser without the cookie to /signin
 ├── packages/
 │   └── api-contract/                   the Zod schemas that derive every wire type
 ├── seed-data/

@@ -1,0 +1,40 @@
+<div class="workspaces-card-head">
+  <div class="workspaces-card-identity">
+    <h2 class="workspaces-card-name">{{ workspace().name }}</h2>
+    <p class="workspaces-card-stats">
+      <span>{{ workspace().memberCount }} {{ workspace().memberCount === 1 ? "member" : "members" }}</span>
+      <span>{{ workspace().sourceCount }} {{ workspace().sourceCount === 1 ? "source" : "sources" }}</span>
+    </p>
+  </div>
+  <div class="workspaces-card-actions">
+    @if (armedId() === workspace().id) {
+      <p class="workspaces-confirm">{{ workspace().memberCount === 1 ? "You're the last member, so leaving deletes this workspace and everything in it." : "Leave this workspace? Every MCP token you made for it stops working." }}</p>
+      <button ksButton class="workspaces-confirm-button" [disabled]="isBusy()" (click)="leave.emit()">Leave workspace</button>
+      <button ksButton [disabled]="isBusy()" (click)="arm.emit(null)">Cancel</button>
+    } @else {
+      @if (isActive()) {
+        <span class="workspaces-open-badge">Open</span>
+      } @else {
+        <button ksButton [disabled]="isBusy()" (click)="open.emit()">Open</button>
+      }
+      <button ksButton [disabled]="isBusy()" (click)="arm.emit(workspace().id)">Leave</button>
+    }
+  </div>
+</div>
+
+<div class="workspaces-card-foot">
+  <p class="workspaces-code-label">Join code</p>
+  <code class="workspaces-code">{{ workspace().joinCode }}</code>
+  <button
+    type="button"
+    class="workspaces-copy-button"
+    [class.workspaces-copy-button-done]="isCopied()"
+    (click)="copyCode.emit()"
+  >@if (isCopied()) {<svg ksCheckMark></svg>Copied} @else {Copy}</button>
+  @if (isActive()) {
+    <span class="workspaces-card-links">
+      <a routerLink="/">Ask a question</a>
+      <a routerLink="/sources">Add sources</a>
+    </span>
+  }
+</div>

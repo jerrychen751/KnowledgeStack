@@ -192,7 +192,7 @@ The Bicep file also sets the image version of each app, and an older version wou
 ## Checks after the first deployment
 
 - `curl <apiUrl>/health/ready` answers 200 with `{"status":"ok"}`, where `<apiUrl>` is `mcpUrl` without `/mcp`. The API reached Postgres over TLS.
-- Opening `webAppUrl` in a private window lands on `<webAppUrl>/signin`. A redirect to `0.0.0.0:3000` means Next.js built the URL from its internal address, and `apps/web/proxy.ts` needs to use the public one.
+- Opening `webAppUrl` in a private window lands on `<webAppUrl>/signin`. `apps/web/server.ts` sends the relative path `/signin`, so a redirect to any other host means something in front of the app rewrote the `Location` header.
 - After sign-in, the `ks_session` cookie carries the `Secure` flag.
 - `SELECT indexname FROM pg_indexes WHERE indexname = 'document_chunks_embedding_idx'` returns one row. No row means a migration dropped the vector index.
 - An answer in the browser appears a few words at a time. An answer that arrives all at once means something between the browser and the API holds the stream back.
