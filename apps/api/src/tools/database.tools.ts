@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { z } from "zod";
 
 import type { SqlRows } from "../database-connections/database-connection.pool.js";
 import { DatabaseConnectionsService } from "../database-connections/database-connections.service.js";
@@ -9,11 +10,6 @@ import type { ToolSession } from "./tool.session.js";
 @Injectable()
 export class DatabaseTools {
   constructor(private readonly connectionsService: DatabaseConnectionsService) {}
-
-  private readName(args: Record<string, unknown>): string {
-    const database = args.database;
-    return typeof database === "string" ? database.trim() : "";
-  }
 
   private readFailure(error: unknown): string {
     return error instanceof Error
@@ -49,7 +45,7 @@ export class DatabaseTools {
     name: "list_databases",
     description:
       "List the databases of the workspace, what each one holds, and how many tables it has. Call this first.",
-    parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
+    parameters: z.object({}),
     buildDisplayText: () => "listed the databases",
   })
   async listDatabases(session: ToolSession): Promise<string> {
@@ -107,31 +103,29 @@ export class DatabaseTools {
     name: "list_tables",
     description:
       "List the tables of one registered database, with the table comment and the row estimate. Filter by name when the database holds many tables.",
-    parameters: {
-      type: "object",
-      properties: {
-        database: {
-          type: "string",
-          description: "The name of one registered database, as list_databases reported it.",
-        },
-        nameFilter: {
-          type: ["string", "null"],
-          description:
-            "Report only the tables whose name holds this text, such as `invc`. Send null to report every table.",
-        },
-      },
-      required: ["database", "nameFilter"],
-      additionalProperties: false,
-    },
+    parameters: z.object({
+      database: z
+        .string()
+        .trim()
+        .min(1, "name a database that list_databases reported")
+        .describe("The name of one registered database, as list_databases reported it."),
+      nameFilter: z
+        .string()
+        .trim()
+        .nullable()
+        .describe(
+          "Report only the tables whose name holds this text, such as `invc`. Send null to report every table.",
+        ),
+    }),
     buildDisplayText: (args) =>
       `listed the tables of ${typeof args.database === "string" ? args.database.trim() : ""}`.trim(),
   })
-  async listTables(session: ToolSession, args: Record<string, unknown>): Promise<string> {
-    const name = this.readName(args);
-    if (name === "") {
-      return "The call named no database. Call list_databases to read the names, then call list_tables again.";
-    }
-    const nameFilter = typeof args.nameFilter === "string" ? args.nameFilter.trim() : "";
+  async listTables(
+    session: ToolSession,
+    args: { database: string; nameFilter: string | null },
+  ): Promise<string> {
+    const name = args.database;
+    const nameFilter = args.nameFilter ?? "";
 
     let tables: SqlRows;
     try {
@@ -191,39 +185,28 @@ export class DatabaseTools {
     name: "describe_tables",
     description:
       "Read the columns, the primary key, the foreign keys and up to five sample rows of up to five tables of one registered database.",
-    parameters: {
-      type: "object",
-      properties: {
-        database: {
-          type: "string",
-          description: "The name of one registered database, as list_databases reported it.",
-        },
-        tables: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "The names of at most five tables, as list_tables reported them. Name every table of one join in one call.",
-        },
-      },
-      required: ["database", "tables"],
-      additionalProperties: false,
-    },
+    parameters: z.object({
+      database: z
+        .string()
+        .trim()
+        .min(1, "name a database that list_databases reported")
+        .describe("The name of one registered database, as list_databases reported it."),
+      tables: z
+        .array(z.string().trim().min(1))
+        .min(1, "name at least one table that list_tables reported")
+        .describe(
+          "The names of at most five tables, as list_tables reported them. Name every table of one join in one call.",
+        ),
+    }),
     buildDisplayText: (args) =>
       `read the columns of ${(Array.isArray(args.tables) ? args.tables : []).join(", ")}`,
   })
-  async describeTables(session: ToolSession, args: Record<string, unknown>): Promise<string> {
-    const name = this.readName(args);
-    if (name === "") {
-      return "The call named no database. Call list_databases to read the names, then call describe_tables again.";
-    }
-    const requested = (Array.isArray(args.tables) ? args.tables : [])
-      .filter((table): table is string => typeof table === "string")
-      .map((table) => table.trim())
-      .filter((table) => table !== "");
-    if (requested.length === 0) {
-      return "The call named no table. Call list_tables to read the names, then call describe_tables again.";
-    }
-    const tableNames = requested.slice(0, 5);
+  async describeTables(
+    session: ToolSession,
+    args: { database: string; tables: string[] },
+  ): Promise<string> {
+    const name = args.database;
+    const tableNames = args.tables.slice(0, 5);
 
     let columns: SqlRows;
     let constraints: SqlRows;
@@ -311,9 +294,9 @@ export class DatabaseTools {
     if (missing.length > 0) {
       sections.push(`The database ${name} holds no table named ${missing.join(", ")}.`);
     }
-    if (requested.length > tableNames.length) {
+    if (args.tables.length > tableNames.length) {
       sections.push(
-        `The call named ${requested.length} tables. This answer covers the first five. Call describe_tables again for the rest.`,
+        `The call named ${args.tables.length} tables. This answer covers the first five. Call describe_tables again for the rest.`,
       );
     }
 
@@ -335,32 +318,25 @@ export class DatabaseTools {
     name: "execute_sql",
     description:
       "Run one read-only SELECT against a registered database and return the rows it matches.",
-    parameters: {
-      type: "object",
-      properties: {
-        database: {
-          type: "string",
-          description: "The name of the database to query, as list_databases reported it.",
-        },
-        sql: {
-          type: "string",
-          description:
-            "One PostgreSQL SELECT statement. Use the exact table and column names describe_tables reported.",
-        },
-      },
-      required: ["database", "sql"],
-      additionalProperties: false,
-    },
+    parameters: z.object({
+      database: z
+        .string()
+        .trim()
+        .min(1, "name a database that list_databases reported")
+        .describe("The name of the database to query, as list_databases reported it."),
+      sql: z
+        .string()
+        .describe(
+          "One PostgreSQL SELECT statement. Use the exact table and column names describe_tables reported.",
+        ),
+    }),
     buildDisplayText: (args) =>
       `ran sql on ${typeof args.database === "string" ? args.database.trim() : ""}`.trim(),
   })
-  async executeSql(session: ToolSession, args: Record<string, unknown>): Promise<string> {
-    const name = this.readName(args);
-    if (name === "") {
-      return "The call named no database. Call list_databases to read the names, then call execute_sql again.";
-    }
+  async executeSql(session: ToolSession, args: { database: string; sql: string }): Promise<string> {
+    const name = args.database;
 
-    const sql = (typeof args.sql === "string" ? args.sql : "").trim().replace(/;+$/, "").trim();
+    const sql = args.sql.trim().replace(/;+$/, "").trim();
     if (sql === "") {
       return "The call carried no sql. Call execute_sql again with one SELECT statement.";
     }

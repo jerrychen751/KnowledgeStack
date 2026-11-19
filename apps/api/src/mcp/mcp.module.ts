@@ -3,8 +3,8 @@
  *
  * McpController owns `POST /mcp`, which speaks Streamable HTTP. Each message builds one Server and one
  * transport with no session, answers, and closes both, because this server sends no notification of its own.
- * McpServerFactory maps every declaration ToolRegistry holds to an MCP tool and passes the JSON Schema
- * through unchanged, so the browser agent and an MCP client run one copy of each tool method.
+ * McpServerFactory maps every declaration ToolRegistry holds to an MCP tool and writes its zod schema
+ * out as JSON Schema, so the browser agent and an MCP client run one copy of each tool method.
  *
  * McpTokenGuard turns the bearer token into the workspace id every tool call reads. It runs no membership
  * check, because Postgres deletes a token with the membership it hangs off. McpTokenController owns the

@@ -1,20 +1,21 @@
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { DiscoveryService, MetadataScanner } from "@nestjs/core";
 import type OpenAI from "openai";
+import { z } from "zod";
 
 import { ToolSession } from "./tool.session.js";
 
 /**
  * The declaration a tool method carries.
  *
- * The model reads `name`, `description` and `parameters`, and `parameters` is a JSON Schema object such as
- * `{ type: "object", properties: { query: { type: "string" } }, required: ["query"] }`. The browser shows
+ * The model reads `name`, `description` and `parameters`, and `parameters` is a zod object schema such as
+ * `z.object({ query: z.string() })`, which reaches the model as JSON Schema. The browser shows
  * the tool display text from `buildDisplayText` while the call runs, such as "searched pension rules".
  */
 type ToolDefinition = {
   name: string;
   description: string;
-  parameters: Record<string, unknown>;
+  parameters: z.ZodObject;
   buildDisplayText(args: Record<string, unknown>): string;
 };
 
@@ -83,7 +84,7 @@ export class ToolRegistry implements OnModuleInit {
           name: definition.name,
           description: definition.description,
           strict: true,
-          parameters: definition.parameters,
+          parameters: z.toJSONSchema(definition.parameters),
         });
       }
     }
@@ -115,12 +116,18 @@ export class ToolRegistry implements OnModuleInit {
    * functionTools. A tool that draws something beside the answer emits its frames on the session, so the
    * caller must drain the session after this call returns.
    */
-  async run(
-    session: ToolSession,
-    name: string,
-    args: Record<string, unknown>,
-  ): Promise<string> {
-    return this.read(name).run(session, args);
+  async run(session: ToolSession, name: string, args: unknown): Promise<string> {
+    const tool = this.read(name);
+    // Checks the arguments a model or an MCP client wrote against the schema of the tool. A fault goes back as the text of the call, so the writer can send a better call.
+    const parsed = tool.definition.parameters.safeParse(args);
+    if (!parsed.success) {
+      const [issue] = parsed.error.issues;
+      // The path names the faulty argument, such as `tables.1` for the second table name, and is empty when the arguments are no object.
+      const argument = issue.path.length === 0 ? "" : `${issue.path.join(".")}: `;
+      return `The arguments of ${name} are wrong. ${argument}${issue.message}. Call ${name} again.`;
+    }
+
+    return tool.run(session, parsed.data);
   }
 
   private read(name: string): RegisteredTool {

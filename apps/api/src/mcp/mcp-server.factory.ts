@@ -6,6 +6,7 @@ import {
   type CallToolResult,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod";
 
 import { ToolRegistry } from "../tools/tool.registry.js";
 import { ToolSession } from "../tools/tool.session.js";
@@ -23,8 +24,8 @@ export class McpServerFactory {
    * where the tools run. Every tool filters by workspace today, so `ToolSession` reads that field only.
    *
    * The caller builds one server per request and closes it after the answer, so the server holds no state
-   * between messages. It uses the low-level Server class and not McpServer, because registerTool accepts a
-   * Zod schema alone and every tool declaration holds a JSON Schema object.
+   * between messages. It uses the low-level Server class and not McpServer, because registerTool checks
+   * the arguments itself and `ToolRegistry.run` already makes that one check for both callers.
    */
   createServer(mcpToken: ResolvedMcpToken): Server {
     const server = new Server(
@@ -44,7 +45,7 @@ export class McpServerFactory {
       tools: this.toolRegistry.definitions.map((definition) => ({
         name: definition.name,
         description: definition.description,
-        inputSchema: definition.parameters as Tool["inputSchema"],
+        inputSchema: z.toJSONSchema(definition.parameters) as Tool["inputSchema"],
         // Every tool that exists today only reads. A tool that writes must state that here.
         annotations: { readOnlyHint: true, openWorldHint: false },
       })),

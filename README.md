@@ -152,7 +152,7 @@ On the API side, `SessionGuard` runs under `APP_GUARD`. A route without `@Public
 
 ### Why a tool is a decorated method
 
-`ToolRegistry` walks every provider of every active module at startup and collects each method that carries `@Tool`. The declaration holds the name, the description, the JSON Schema of the arguments, and the function that builds the browser display text. Adding a tool takes one method in one service, without a separate registration list. An outside client reaches those same methods, so it sees the same tool definitions as the browser agent.
+`ToolRegistry` walks every provider of every active module at startup and collects each method that carries `@Tool`. The declaration holds the name, the description, the zod schema of the arguments, and the function that builds the browser display text. Adding a tool takes one method in one service, without a separate registration list. An outside client reaches those same methods, so it sees the same tool definitions as the browser agent.
 
 ### How a sync pass deletes a document without losing a live one
 
