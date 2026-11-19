@@ -43,7 +43,7 @@ export class ChatController {
   listModels(): ListModelsResponse {
     return {
       modelIds: this.chatService.modelIds,
-      defaultModelId: this.chatService.modelIds[0],
+      defaultModelId: this.chatService.defaultModelId,
     };
   }
 
@@ -114,7 +114,7 @@ export class ChatController {
     const modelIds = this.chatService.modelIds;
     const modelId =
       requestedModelId === undefined || requestedModelId === null || requestedModelId === ""
-        ? modelIds[0]
+        ? this.chatService.defaultModelId
         : requestedModelId;
     if (!modelIds.includes(modelId)) {
       throw new BadRequestException(`modelId must be one of ${modelIds.join(", ")}.`);

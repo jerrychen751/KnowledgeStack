@@ -9,7 +9,7 @@ export const listModelsResponseSchema = z.object({
   defaultModelId: z.string(),
 });
 
-/** The body `GET /chat/models` answers with, cheapest model first. Each entry is a model id, such as "gpt-5.6-luna", and the browser shows it as written. `defaultModelId` names the model that answers a request without a `modelId` field. */
+/** The body `GET /chat/models` answers with, cheapest model first. Each entry is a model id, such as "gpt-6-luna", and the browser shows it as written. `defaultModelId` names the model that answers a request without a `modelId` field. */
 export type ListModelsResponse = z.infer<typeof listModelsResponseSchema>;
 
 export const chatSchema = z.object({

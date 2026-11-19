@@ -35,9 +35,13 @@ export class ChatService implements OnModuleInit {
     private readonly compactionService: CompactionService,
   ) {}
 
-  /** Every model a question can run on, cheapest first. The first entry answers a request that names none. */
+  /** Every model a question can run on, cheapest first. */
   get modelIds(): readonly string[] {
     return this.agentLoop.modelIds;
+  }
+
+  get defaultModelId(): string {
+    return this.agentLoop.defaultModelId;
   }
 
   /**

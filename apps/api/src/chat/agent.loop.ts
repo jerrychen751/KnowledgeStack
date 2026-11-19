@@ -10,10 +10,13 @@ import { type ChatMessage, CompactionService } from "./compaction.service.js";
 @Injectable()
 export class AgentLoop {
   readonly modelIds: readonly string[] = [
-    "gpt-5.6-luna",
-    "gpt-5.6-terra",
-    "gpt-5.6-sol",
+    "gpt-6-luna",
+    "gpt-6.2-sol",
+    "gpt-6.2-astra",
   ];
+
+  // gpt-6-luna costs a twentieth as much, but it left a documented filter out of its SQL on the demo question.
+  readonly defaultModelId = "gpt-6.2-sol";
 
   private readonly client: OpenAI;
 
@@ -76,8 +79,8 @@ export class AgentLoop {
    * a compaction event with the notes that summarize the oldest turns, and a context event with the size the
    * next question starts from. ChatService writes the notes and the compacted turn count onto the chat row.
    *
-   * The call goes to /v1/responses, because /v1/chat/completions rejects a function tool for every GPT-5.6
-   * model unless the request turns reasoning off. `store: false` keeps the chat off the OpenAI
+   * The call goes to /v1/responses, because /v1/chat/completions rejects a function tool for every model in
+   * `modelIds` unless the request turns reasoning off. `store: false` keeps the chat off the OpenAI
    * account, so each round sends back every item of the round before it, and the encrypted reasoning in
    * those items is what carries the chain of thought from one round to the next.
    */

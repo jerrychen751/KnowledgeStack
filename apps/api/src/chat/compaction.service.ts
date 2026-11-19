@@ -39,7 +39,7 @@ export class CompactionService {
     this.client = new OpenAI({ apiKey: appConfig.openaiApiKey, maxRetries: 2 });
   }
 
-  /** Count the tokens of one text as every GPT-5.6 model counts them. A model outside that family tokenizes differently, and the count drifts. */
+  /** Count the tokens of one text as the GPT-6 and GPT-6.2 models count them. A model outside those families tokenizes differently, and the count drifts. */
   private countTokens(text: string): number {
     this.encoder ??= getEncoding("o200k_base");
     return this.encoder.encode(text).length;
