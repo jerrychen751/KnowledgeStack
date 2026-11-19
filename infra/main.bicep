@@ -225,12 +225,12 @@ resource deployIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-0
   name: 'id-knowledgestack-deploy'
   location: location
 
-  // Azure accepts a GitHub token only when it names this repository and this branch.
+  // Azure accepts a GitHub token only when it names this repository and this branch. GitHub writes the account id after the owner and the repository id after the name, so a later repository that reuses the name cannot sign in. The subject must match that text exactly.
   resource githubMain 'federatedIdentityCredentials' = {
     name: 'github-main'
     properties: {
       issuer: 'https://token.actions.githubusercontent.com'
-      subject: 'repo:jerrychen751/KnowledgeStack:ref:refs/heads/main'
+      subject: 'repo:jerrychen751@184151454/KnowledgeStack@1330295293:ref:refs/heads/main'
       audiences: ['api://AzureADTokenExchange']
     }
   }
