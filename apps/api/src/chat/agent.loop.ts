@@ -18,6 +18,8 @@ export class AgentLoop {
   // gpt-6-luna costs a twentieth as much, but it left a documented filter out of its SQL on the demo question.
   readonly defaultModelId = "gpt-6.2-sol";
 
+  private readonly maxModelCallCount = 50;
+
   private readonly client: OpenAI;
 
   constructor(
@@ -135,7 +137,7 @@ export class AgentLoop {
     let isAnswered = false;
 
     // Limit to 50 model turns max per user message
-    for (let modelCallCount = 0; modelCallCount < 50; modelCallCount += 1) {
+    for (let modelCallCount = 0; modelCallCount < this.maxModelCallCount; modelCallCount += 1) {
       // OpenAI returns a response which is a stream of events
       const response = await this.client.responses.create({
         model: modelId,
@@ -212,7 +214,7 @@ export class AgentLoop {
     }
 
     if (!isAnswered) {
-      const text = `${answerText === "" ? "" : "\n\n"}The search did not settle after 50 model calls. Ask the question with fewer parts.`;
+      const text = `${answerText === "" ? "" : "\n\n"}The search did not settle after ${this.maxModelCallCount} model calls. Ask the question with fewer parts.`;
       answerText += text;
       yield { type: "delta", text };
     }

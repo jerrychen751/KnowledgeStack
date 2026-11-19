@@ -21,6 +21,8 @@ type SearchResult = {
 
 @Injectable()
 export class DocumentTools {
+  private readonly maxChunkCount = 6;
+
   constructor(
     private readonly embeddingService: EmbeddingService,
     private readonly prisma: PrismaService,
@@ -68,7 +70,7 @@ export class DocumentTools {
       JOIN sources s ON s.id = d.source_id
       WHERE s.workspace_id = ${session.workspaceId} AND c.embedding IS NOT NULL
       ORDER BY c.embedding <=> ${`[${queryVector.join(",")}]`}::vector
-      LIMIT 6
+      LIMIT ${this.maxChunkCount}
     `;
 
     const citations = results.map((found) => session.cite(found));

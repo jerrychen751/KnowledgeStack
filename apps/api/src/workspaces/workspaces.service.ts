@@ -11,6 +11,9 @@ const joinCodeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 @Injectable()
 export class WorkspacesService {
+  private readonly joinCodeLength = 8;
+  private readonly maxSlugLength = 40;
+
   constructor(
     private readonly databaseConnectionPool: DatabaseConnectionPool,
     private readonly prisma: PrismaService,
@@ -22,7 +25,7 @@ export class WorkspacesService {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
-        .slice(0, 40) || "workspace";
+        .slice(0, this.maxSlugLength) || "workspace";
     const takenSlugs = new Set(
       (
         await this.prisma.workspace.findMany({
@@ -83,7 +86,7 @@ export class WorkspacesService {
         slug: await this.createSlug(name),
         // randomInt draws evenly. A random byte taken modulo 31 would favour the first characters of the alphabet.
         joinCode: Array.from(
-          { length: 8 },
+          { length: this.joinCodeLength },
           () => joinCodeAlphabet[randomInt(joinCodeAlphabet.length)],
         ).join(""),
         memberships: { create: { userId } },

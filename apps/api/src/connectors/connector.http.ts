@@ -27,11 +27,13 @@ export async function fetchConnectorJson<T>(
   init?: RequestInit,
 ): Promise<{ body: T; response: Response }> {
   const maxRetries = 4;
+  const requestTimeoutMs = 30_000;
+  const maxDelayMs = 60_000;
   for (let attempt = 0; ; attempt += 1) {
     let response: Response;
     try {
       // Build the signal inside the loop: an AbortSignal fires once and stays aborted for every later attempt.
-      const timeout = AbortSignal.timeout(30000);
+      const timeout = AbortSignal.timeout(requestTimeoutMs);
       response = await fetch(url, {
         ...init,
         // The spread would drop the signal of the caller, so combine the two instead of replacing one.
@@ -74,10 +76,7 @@ export async function fetchConnectorJson<T>(
     // Number(null) is 0 and Number of an HTTP-date is NaN, so both fall through to the backoff below.
     const retryAfterMs = Number(retryAfter) * 1000;
     // The cap stops one long Retry-After from stalling the pass. An aborted pass resumes at the failed document.
-    const delay = Math.min(
-      retryAfterMs > 0 ? retryAfterMs : 2 ** attempt * 1000,
-      60000,
-    );
+    const delay = Math.min(retryAfterMs > 0 ? retryAfterMs : 2 ** attempt * 1000, maxDelayMs);
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
 }

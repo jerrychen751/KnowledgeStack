@@ -44,6 +44,8 @@ const OAUTH_STATE_COOKIE_NAME = "ks_oauth_state";
 
 @Controller("auth")
 export class AuthController {
+  private readonly oauthStateLifetimeMinutes = 10;
+
   constructor(
     private readonly authService: AuthService,
     private readonly appConfig: AppConfig,
@@ -81,7 +83,7 @@ export class AuthController {
 
     response.cookie(OAUTH_STATE_COOKIE_NAME, signIn.state, {
       ...this.buildCookieOptions(),
-      expires: new Date(Date.now() + 10 * 60 * 1000),
+      expires: new Date(Date.now() + this.oauthStateLifetimeMinutes * 60 * 1000),
     });
     response.json({ authorizeUrl: signIn.authorizeUrl } satisfies StartSignInResponse);
   }

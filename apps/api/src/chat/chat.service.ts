@@ -29,6 +29,8 @@ type TurnRow = Omit<Turn, "displayTexts" | "citations" | "queryResults"> & {
 
 @Injectable()
 export class ChatService implements OnModuleInit {
+  private readonly maxRunningMinutes = 10;
+
   constructor(
     private readonly agentLoop: AgentLoop,
     private readonly chatRepository: ChatRepository,
@@ -167,7 +169,7 @@ export class ChatService implements OnModuleInit {
     const newestTurn = chat.turns[chat.turns.length - 1];
     if (newestTurn !== undefined && newestTurn.state === "running") {
       const runningMinutes = (Date.now() - newestTurn.updatedAt.getTime()) / 60_000;
-      if (runningMinutes < 10) {
+      if (runningMinutes < this.maxRunningMinutes) {
         throw new ConflictException("This chat is still answering the question before this one.");
       }
 

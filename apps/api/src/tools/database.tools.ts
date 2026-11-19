@@ -9,6 +9,20 @@ import type { ToolSession } from "./tool.session.js";
 
 @Injectable()
 export class DatabaseTools {
+  // The caps on what one tool call reads and returns. The object is static because the describe_tables declaration quotes two of them to the model, and a decorator runs before any instance exists.
+  private static readonly limits = {
+    maxInlineTableCount: 50,
+    maxListedTableCount: 200,
+    maxDescribedTableCount: 5,
+    sampleRowCount: 5,
+    maxRowCount: 1000,
+    maxCellCharacterCount: 200,
+    listDatabasesCharacterBudget: 6_000,
+    listTablesCharacterBudget: 8_000,
+    describeTablesCharacterBudget: 12_000,
+    executeSqlCharacterBudget: 20_000,
+  };
+
   constructor(private readonly connectionsService: DatabaseConnectionsService) {}
 
   private readFailure(error: unknown): string {
@@ -26,10 +40,17 @@ export class DatabaseTools {
   }
 
   private renderRows(result: SqlRows): string[] {
+    const { maxCellCharacterCount } = DatabaseTools.limits;
     return [
       result.columns.join(" | "),
       ...result.rows.map((row) =>
-        row.map((cell) => (cell.length <= 200 ? cell : `${cell.slice(0, 200)}...`)).join(" | "),
+        row
+          .map((cell) =>
+            cell.length <= maxCellCharacterCount
+              ? cell
+              : `${cell.slice(0, maxCellCharacterCount)}...`,
+          )
+          .join(" | "),
       ),
     ];
   }
@@ -68,7 +89,7 @@ export class DatabaseTools {
              FROM information_schema.tables
              WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
              ORDER BY table_name
-             LIMIT 50`,
+             LIMIT ${DatabaseTools.limits.maxInlineTableCount}`,
           );
 
           const tableCount = tables.rows.length === 0 ? 0 : Number(tables.rows[0][0]);
@@ -87,7 +108,7 @@ export class DatabaseTools {
 
     return this.cutToBudget(
       `The workspace registered these databases.\n${listed.join("\n")}`,
-      6_000,
+      DatabaseTools.limits.listDatabasesCharacterBudget,
       "Call list_tables for one database.",
     );
   }
@@ -143,7 +164,7 @@ export class DatabaseTools {
            AND c.relkind = 'r'
            AND ($1::text = '' OR c.relname ILIKE '%' || $1::text || '%')
          ORDER BY c.relname
-         LIMIT 200`,
+         LIMIT ${DatabaseTools.limits.maxListedTableCount}`,
         [nameFilter],
       );
     } catch (error) {
@@ -169,7 +190,7 @@ export class DatabaseTools {
 
     return this.cutToBudget(
       `${heading}\n${lines.join("\n")}`,
-      8_000,
+      DatabaseTools.limits.listTablesCharacterBudget,
       "Call list_tables again with a name filter.",
     );
   }
@@ -183,8 +204,7 @@ export class DatabaseTools {
    */
   @Tool({
     name: "describe_tables",
-    description:
-      "Read the columns, the primary key, the foreign keys and up to five sample rows of up to five tables of one registered database.",
+    description: `Read the columns, the primary key, the foreign keys and up to ${DatabaseTools.limits.sampleRowCount} sample rows of up to ${DatabaseTools.limits.maxDescribedTableCount} tables of one registered database.`,
     parameters: z.object({
       database: z
         .string()
@@ -195,7 +215,7 @@ export class DatabaseTools {
         .array(z.string().trim().min(1))
         .min(1, "name at least one table that list_tables reported")
         .describe(
-          "The names of at most five tables, as list_tables reported them. Name every table of one join in one call.",
+          `The names of at most ${DatabaseTools.limits.maxDescribedTableCount} tables, as list_tables reported them. Name every table of one join in one call.`,
         ),
     }),
     buildDisplayText: (args) =>
@@ -206,7 +226,7 @@ export class DatabaseTools {
     args: { database: string; tables: string[] },
   ): Promise<string> {
     const name = args.database;
-    const tableNames = args.tables.slice(0, 5);
+    const tableNames = args.tables.slice(0, DatabaseTools.limits.maxDescribedTableCount);
 
     let columns: SqlRows;
     let constraints: SqlRows;
@@ -258,7 +278,7 @@ export class DatabaseTools {
           const rows = await this.connectionsService.executeSql(
             session.workspaceId,
             name,
-            `SELECT * FROM public."${tableName.replaceAll('"', '""')}" LIMIT 5`,
+            `SELECT * FROM public."${tableName.replaceAll('"', '""')}" LIMIT ${DatabaseTools.limits.sampleRowCount}`,
           );
 
           return rows.rows.length === 0
@@ -296,13 +316,13 @@ export class DatabaseTools {
     }
     if (args.tables.length > tableNames.length) {
       sections.push(
-        `The call named ${args.tables.length} tables. This answer covers the first five. Call describe_tables again for the rest.`,
+        `The call named ${args.tables.length} tables. This answer covers the first ${tableNames.length}. Call describe_tables again for the rest.`,
       );
     }
 
     return this.cutToBudget(
       sections.join("\n\n"),
-      12_000,
+      DatabaseTools.limits.describeTablesCharacterBudget,
       "Call describe_tables again for fewer tables.",
     );
   }
@@ -352,7 +372,7 @@ export class DatabaseTools {
       rows = await this.connectionsService.executeSql(
         session.workspaceId,
         name,
-        `SELECT * FROM (${sql}) AS query LIMIT 1000`,
+        `SELECT * FROM (${sql}) AS query LIMIT ${DatabaseTools.limits.maxRowCount}`,
       );
     } catch (error) {
       return `The query did not run: ${this.readFailure(error)}. Call describe_tables again, then correct the database name and the column names.`;
@@ -368,6 +388,10 @@ export class DatabaseTools {
       `${rows.rows.length} row${rows.rows.length === 1 ? "" : "s"}.`,
     ].join("\n");
 
-    return this.cutToBudget(table, 20_000, "Add a WHERE clause, or select fewer columns.");
+    return this.cutToBudget(
+      table,
+      DatabaseTools.limits.executeSqlCharacterBudget,
+      "Add a WHERE clause, or select fewer columns.",
+    );
   }
 }

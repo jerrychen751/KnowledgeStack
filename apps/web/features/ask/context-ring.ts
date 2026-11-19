@@ -7,7 +7,7 @@ import type { ContextUsage } from "@knowledgestack/api-contract/chat";
   selector: "span[ksContextRing]",
   host: {
     class: "ask-context-ring",
-    "[class.ask-context-ring-high]": "usage().fraction >= 0.8",
+    "[class.ask-context-ring-high]": "usage().fraction >= warningFraction",
     "[attr.title]": "title()",
   },
   template: `
@@ -27,6 +27,7 @@ import type { ContextUsage } from "@knowledgestack/api-contract/chat";
 })
 export class ContextRing {
   readonly usage = input.required<ContextUsage>();
+  protected readonly warningFraction = 0.8;
   protected readonly circumference = 2 * Math.PI * 6;
   protected readonly Math = Math;
   protected readonly title = computed(() => {

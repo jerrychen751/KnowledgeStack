@@ -37,6 +37,7 @@ class ReauthRequiredError extends Error {
 
 @Injectable()
 export class TokenService {
+  private readonly eagerRefreshThresholdMilliseconds = 60_000;
   private readonly encryptionService: EncryptionService;
   private readonly oauthRegistry: OAuthRegistry;
   // One request per credential prevents two source rows from sending the same refresh token in this process.
@@ -136,12 +137,11 @@ export class TokenService {
     }
 
     // expiresAt is null when the provider returns no expiry time, as Notion does.
-    const eagerRefreshThresholdMilliseconds = 60_000;
     if (
       !forceRefresh &&
       (credential.expiresAt === null ||
         credential.expiresAt.getTime() - Date.now() >
-          eagerRefreshThresholdMilliseconds)
+          this.eagerRefreshThresholdMilliseconds)
     ) {
       try {
         return this.encryptionService.decrypt(credential.encryptedAccessToken);
@@ -188,12 +188,11 @@ export class TokenService {
           return { reauthReason: "the credential needs a new grant" };
         }
 
-        const eagerRefreshThresholdMilliseconds = 60_000;
         if (
           !forceRefresh &&
           (credential.expiresAt === null ||
             credential.expiresAt.getTime() - Date.now() >
-              eagerRefreshThresholdMilliseconds)
+              this.eagerRefreshThresholdMilliseconds)
         ) {
           try {
             return { accessToken: this.encryptionService.decrypt(credential.encryptedAccessToken) };

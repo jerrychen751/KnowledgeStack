@@ -22,6 +22,8 @@ export type ResolvedMcpToken = {
 
 @Injectable()
 export class McpTokenService {
+  private readonly tokenLifetimeDays = 90;
+
   constructor(private readonly prisma: PrismaService) {}
 
   private hashSecret(secret: string): string {
@@ -72,7 +74,7 @@ export class McpTokenService {
       data: {
         name,
         hash: this.hashSecret(secret),
-        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + this.tokenLifetimeDays * 24 * 60 * 60 * 1000),
         membershipId: membership.id,
       },
     });

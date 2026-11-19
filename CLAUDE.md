@@ -33,7 +33,7 @@ Check again only when a second boundary sits between the two points.
 
 Prisma cannot represent an HNSW index on `DocumentChunk.embedding`, because the column is `Unsupported("vector(1536)")`. So the diff sees an index the schema does not declare and proposes to remove it. `apps/api/prisma/migrations/20260811185206_add_document_sources/migration.sql:88` is the hand-written statement that creates it.
 
-The drop is silent. Nothing fails, and the vector search in `apps/api/src/tools/document.tools.ts:64` keeps answering, because a sequential scan returns the same rows. Only the latency changes, and only once the corpus is large enough to notice.
+The drop is silent. Nothing fails, and the vector search in `apps/api/src/tools/document.tools.ts:59` keeps answering, because a sequential scan returns the same rows. Only the latency changes, and only once the corpus is large enough to notice.
 
 ```sql
 CREATE INDEX "document_chunks_embedding_idx" ON "document_chunks" USING hnsw ("embedding" vector_cosine_ops);

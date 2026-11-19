@@ -36,6 +36,8 @@ export type RequestSession = {
 
 @Injectable()
 export class SessionService {
+  private readonly sessionLifetimeDays = 30;
+
   constructor(private readonly prisma: PrismaService) {}
 
   private hashToken(token: string): string {
@@ -53,7 +55,7 @@ export class SessionService {
     activeWorkspaceId: string | null,
   ): Promise<{ token: string; expiresAt: Date }> {
     const token = randomBytes(32).toString("base64url");
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + this.sessionLifetimeDays * 24 * 60 * 60 * 1000);
     await this.prisma.userSession.create({
       data: { activeWorkspaceId, expiresAt, tokenHash: this.hashToken(token), userId },
     });

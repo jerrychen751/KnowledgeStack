@@ -37,6 +37,13 @@ export class ConnectionFailedError extends Error {}
 export class DatabaseConnectionPool implements OnModuleDestroy {
   private readonly poolsByConnectionId = new Map<string, Pool>();
 
+  private readonly limits = {
+    maxConnectionCount: 3,
+    connectionTimeoutMilliseconds: 5_000,
+    idleTimeoutMilliseconds: 30_000,
+    statementTimeoutMilliseconds: 60_000,
+  };
+
   private readPool(settings: ConnectionSettings): Pool {
     if (settings.engine !== DatabaseEngine.POSTGRESQL) {
       throw new Error(`The ${settings.engine} database engine has no query driver.`);
@@ -55,10 +62,10 @@ export class DatabaseConnectionPool implements OnModuleDestroy {
       password: settings.password,
       // true makes pg verify the server certificate against the CA list that ships with Node, so no CA file is configured.
       ssl: settings.ssl,
-      max: 3,
-      connectionTimeoutMillis: 5_000,
-      idleTimeoutMillis: 30_000,
-      options: "-c default_transaction_read_only=on -c statement_timeout=60000",
+      max: this.limits.maxConnectionCount,
+      connectionTimeoutMillis: this.limits.connectionTimeoutMilliseconds,
+      idleTimeoutMillis: this.limits.idleTimeoutMilliseconds,
+      options: `-c default_transaction_read_only=on -c statement_timeout=${this.limits.statementTimeoutMilliseconds}`,
     });
     pool.on("error", () => {});
     this.poolsByConnectionId.set(settings.id, pool);
@@ -85,7 +92,7 @@ export class DatabaseConnectionPool implements OnModuleDestroy {
       user: settings.username,
       password: settings.password,
       ssl: settings.ssl,
-      connectionTimeoutMillis: 5_000,
+      connectionTimeoutMillis: this.limits.connectionTimeoutMilliseconds,
     });
     try {
       await client.connect();
