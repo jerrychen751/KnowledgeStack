@@ -101,7 +101,7 @@ The server's firewall admits addresses inside Azure only, so add a rule for the 
 
 ```bash
 MY_IP=$(curl -s https://api.ipify.org)
-az postgres flexible-server firewall-rule create --resource-group rg-knowledgestack --name <server> --rule-name laptop --start-ip-address "$MY_IP" --end-ip-address "$MY_IP"
+az postgres flexible-server firewall-rule create --resource-group rg-knowledgestack --server-name <server> --name laptop --start-ip-address "$MY_IP" --end-ip-address "$MY_IP"
 ```
 
 Load the tables and the data:
@@ -138,7 +138,7 @@ psql --dbname knowledgestack --set ON_ERROR_STOP=1 \
 Remove the laptop rule:
 
 ```bash
-az postgres flexible-server firewall-rule delete --resource-group rg-knowledgestack --name <server> --rule-name laptop --yes
+az postgres flexible-server firewall-rule delete --resource-group rg-knowledgestack --server-name <server> --name laptop --yes
 ```
 
 ### 8. Tell the sign-in providers the new address
