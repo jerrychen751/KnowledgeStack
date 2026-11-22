@@ -23,7 +23,7 @@ Before you write a guard, name the producer of the value and the guarantee that 
 
 Check again only when a second boundary sits between the two points.
 
-- The model wrote the value. A tool call arrives as text the model produced, so `apps/api/src/tools/tool.registry.ts` and each `@Tool` method parse it and answer the model with a correction.
+- The model wrote the value. A tool call arrives as text the model produced, so `apps/api/src/tools/tool.registry.ts` parses it and answers the model with a correction.
 - A third party wrote the value. An OAuth response and a connector payload both leave a system this repository does not control.
 - The check tests a different fact. A path that a person supplied needs containment even after the type says it is a string.
 
